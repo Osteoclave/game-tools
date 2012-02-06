@@ -19,14 +19,14 @@
 # This code uses python-bitstring version 2.2.0:
 # http://code.google.com/p/python-bitstring/
 
-import os
+from __future__ import division
+
 import sys
-import array
 import bitstring
 
 
 
-def compress( inFile ):
+def compress(inBytes):
     # Define some useful constants.
     SEARCH_LOG = 8
     SEARCH_SIZE = (1 << SEARCH_LOG)
@@ -35,20 +35,14 @@ def compress( inFile ):
     BIT_PASTCOPY = 0
     BIT_LITERAL = 1
 
-    # Open the input file.
-    inStream = open(inFile, "rb")
-    inSize = os.fstat(inStream.fileno()).st_size
-
     # Prepare the memory buffer.
-    buffer = array.array('B', [0x20] * SEARCH_SIZE)
-    buffer.fromfile(inStream, inSize)
-
-    # Close the input file.
-    inStream.close()
+    buffer = bytearray(SEARCH_SIZE + len(inBytes))
+    buffer[:SEARCH_SIZE] = [0x20] * SEARCH_SIZE
+    buffer[SEARCH_SIZE:] = inBytes
 
     # Prepare for compression.
     output = bitstring.BitArray()
-    output.append(bitstring.pack('uintle:16', inSize))
+    output += bitstring.pack('uintle:16', len(inBytes))
     currentIndex = SEARCH_SIZE
 
     # Main compression loop.
@@ -87,13 +81,13 @@ def compress( inFile ):
             # For some reason, the decompressor expects the pastcopy 
             # source values to be offset by 0xEF. I have no idea why.
             bestIndex = (bestIndex + 0xEF) & 0xFF
-            output.append(bitstring.pack('bool', BIT_PASTCOPY))
-            output.append(bitstring.pack('uint:{0:d}'.format(SEARCH_LOG), bestIndex))
-            output.append(bitstring.pack('uint:{0:d}'.format(LOOKAHEAD_LOG), bestLength - 2))
+            output += bitstring.pack('bool', BIT_PASTCOPY)
+            output += bitstring.pack('uint:n=v', n = SEARCH_LOG, v = bestIndex)
+            output += bitstring.pack('uint:n=v', n = LOOKAHEAD_LOG, v = bestLength - 2)
             currentIndex += bestLength
         else:
-            output.append(bitstring.pack('bool', BIT_LITERAL))
-            output.append(bitstring.pack('uint:8', buffer[currentIndex]))
+            output += bitstring.pack('bool', BIT_LITERAL)
+            output += bitstring.pack('uint:8', buffer[currentIndex])
             currentIndex += 1
 
     # Return the compressed data.
@@ -122,19 +116,27 @@ if __name__ == "__main__":
     if argc == 4:
         outOffset = int(sys.argv[3], 16)
 
+    # Open, read and close the input file.
+    inStream = open(inFile, "rb")
+    inBytes = bytes(inStream.read())
+    inStream.close()
+
     # Compress the data.
-    # Maybe this should take an array instead of a file? Unsure.
-    outData = compress(inFile)
+    outBytes = compress(inBytes)
 
     # Write the compressed output, if appropriate.
     if outFile is not None:
+        # Mode r+b gives an error if the file doesn't already exist.
+        open(outFile, "a").close()
         outStream = open(outFile, "r+b")
         outStream.seek(outOffset)
-        outStream.write(outData)
+        outStream.write(outBytes)
         outStream.close()
 
-    # Report the size of the compressed data.
-    sys.stdout.write("New compressed size: 0x{0:X} ({0:d}) bytes\n".format(len(outData)))
+    # Report statistics on the data.
+    sys.stdout.write("Uncompressed size: 0x{0:X} ({0:d}) bytes\n".format(len(inBytes)))
+    sys.stdout.write("Compressed size: 0x{0:X} ({0:d}) bytes\n".format(len(outBytes)))
+    sys.stdout.write("Ratio: {0:f}\n".format(len(outBytes) / len(inBytes)))
 
     # Exit.
     sys.exit(0)
