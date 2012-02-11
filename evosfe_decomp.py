@@ -45,25 +45,24 @@
 #        Pastcopy (0) = [SSSSSSSS LLLLSSSS PPPPPPPP] <-- Extended
 #        Literal  (1) = [NNNNNNNN]
 # 
-#   - Pastcopy is a bit complicated. Let's take it in parts.
+#   - Let's start with pastcopies.
+#     Look at the first two argument bytes as a 16-bit word.
 # 
 #   - PASTCOPY SOURCE
-#     First, we read two bytes as a 16-bit integer.
-#     The low twelve bits of this word (0x-SSS) are the source.
+#     The low twelve bits of this word (0x.SSS) are the source.
 #     To get the actual source address, add one to the source
 #     value, and subtract this number from the current writing
-#     location. A source of 0 gets the previous byte, 1 gets 
+#     location. So a source of 0 gets the previous byte, 1 gets 
 #     the byte before that, and so on.
 # 
 #   - PASTCOPY LENGTH
-#     Look again at the initial 16-bit integer.
-#     The high four bits (0xL---) are the length.
-#     If the length is 0xF and the 0x80 bit of the first byte of
+#     The high four bits of this word (0xL...) are the length.
+#     If the length is 0xF and the 0x80 bit of the first byte of 
 #     the header is set, it's an extended pastcopy. Read another 
 #     byte and add its value to the length.
-#     Finally, regardless of type, add:
+#     Finally, regardless of normal or extended type, add
 #       (First header byte & 0x7F)
-#     To the length.
+#     to the length.
 # 
 #   - The maximum length of a pastcopy:
 #         F = Maximum possible original L value
@@ -77,19 +76,18 @@
 
 import sys
 import struct
-import array
 
 
 
-def decompress( romFile, startOffset ):
+def decompress(romFile, startOffset):
     # Open the ROM.
     romStream = open(romFile, "rb")
     romStream.seek(startOffset)
 
     # Prepare for decompression.
-    firstByte = struct.unpack("<B", romStream.read(1))[0]
+    pastcopyByte = struct.unpack("<B", romStream.read(1))[0]
     decompSize = struct.unpack("<H", romStream.read(2))[0]
-    decomp = array.array('B', [0x00] * decompSize)
+    decomp = bytearray([0x00] * decompSize)
     decompPos = 0
     controlByte = struct.unpack("<B", romStream.read(1))[0]
     controlMask = 0x01
@@ -98,12 +96,7 @@ def decompress( romFile, startOffset ):
     while decompPos < decompSize:
         nextCommand = bool(controlByte & controlMask)
 
-        if nextCommand == True:
-            # 1: Literal case.
-            decomp[decompPos] = struct.unpack("<B", romStream.read(1))[0]
-            decompPos += 1
-
-        else:
+        if nextCommand == False:
             # 0: Pastcopy case.
             pastCopy = struct.unpack("<H", romStream.read(2))[0]
 
@@ -114,9 +107,9 @@ def decompress( romFile, startOffset ):
             # Copy length
             copyLength = pastCopy & 0xF000
             copyLength >>= 12
-            if (copyLength == 0xF) and bool(firstByte & 0x80):
+            if (copyLength == 0xF) and bool(pastcopyByte & 0x80):
                 copyLength += struct.unpack("<B", romStream.read(1))[0]
-            copyLength += (firstByte & 0x7F)
+            copyLength += (pastcopyByte & 0x7F)
 
             # Truncate copies that would exceed "decompSize" bytes.
             if (decompPos + copyLength) >= decompSize:
@@ -126,6 +119,11 @@ def decompress( romFile, startOffset ):
             for i in range(copyLength):
                 decomp[decompPos] = decomp[decompPos - copySource]
                 decompPos += 1
+
+        else:
+            # 1: Literal case.
+            decomp[decompPos] = struct.unpack("<B", romStream.read(1))[0]
+            decompPos += 1
 
         # Prepare to handle the next control bit.
         controlMask <<= 1
@@ -169,15 +167,16 @@ if __name__ == "__main__":
         outFile = sys.argv[3]
 
     # Decompress the data.
-    output, lastOffset = decompress(romFile, startOffset)
+    outBytes, lastOffset = decompress(romFile, startOffset)
 
     # Write the decompressed output, if appropriate.
     if outFile is not None:
         outStream = open(outFile, "wb")
-        output.tofile(outStream)
+        outStream.write(outBytes)
         outStream.close()
 
-    # Report the last offset.
+    # Report the size of the compressed data and last offset.
+    sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(lastOffset - startOffset + 1))
     sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(lastOffset))
 
     # Exit.

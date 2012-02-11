@@ -4,8 +4,7 @@
 # 
 # 
 # 
-# Several SNES games by Quintet share one data compression format.
-# Games that use this format include:
+# This compression format is used by five of Quintet's games:
 #   - ActRaiser
 #   - ActRaiser 2
 #   - Illusion of Gaia
@@ -66,40 +65,38 @@
 # http://code.google.com/p/python-bitstring/
 
 import sys
-import array
-from bitstring import ConstBitStream
+import bitstring
 
 
 
-def decompress( romFile, startOffset ):
+def decompress(romFile, startOffset):
+    # Define some useful constants.
+    SEARCH_LOG2 = 8
+    SEARCH_SIZE = 1 << SEARCH_LOG2
+    LOOKAHEAD_LOG2 = 4
+    LOOKAHEAD_SIZE = 1 << LOOKAHEAD_LOG2
+    BIT_PASTCOPY = 0
+    BIT_LITERAL = 1
+
     # Open the ROM.
-    romStream = ConstBitStream(filename=romFile)
+    romStream = bitstring.ConstBitStream(filename=romFile)
     romStream.bytepos += startOffset
 
     # Allocate memory for the decompression process.
     decompSize = romStream.read('uintle:16')
-    decomp = array.array('B', [0x00] * decompSize)
+    decomp = bytearray([0x00] * decompSize)
     decompPos = 0
-    window = array.array('B', [0x20] * 0x100)
+    window = bytearray([0x20] * SEARCH_SIZE)
     windowPos = 0xEF
 
     # Main decompression loop.
     while decompPos < decompSize:
         nextCommand = romStream.read('bool')
 
-        if nextCommand == True:
-            # 1: Literal case.
-            literalByte = romStream.read('uint:8')
-            decomp[decompPos] = literalByte
-            decompPos += 1
-            window[windowPos] = literalByte
-            windowPos += 1
-            windowPos &= 0xFF
-
-        else:
+        if nextCommand == BIT_PASTCOPY:
             # 0: Pastcopy case.
-            copySource = romStream.read('uint:8')
-            copyLength = romStream.read('uint:4')
+            copySource = romStream.read(SEARCH_LOG2).uint
+            copyLength = romStream.read(LOOKAHEAD_LOG2).uint
             copyLength += 2
 
             # Truncate copies that would exceed "decompSize" bytes.
@@ -111,9 +108,18 @@ def decompress( romFile, startOffset ):
                 decompPos += 1
                 window[windowPos] = window[copySource]
                 windowPos += 1
-                windowPos &= 0xFF
+                windowPos &= (SEARCH_SIZE - 1)
                 copySource += 1
-                copySource &= 0xFF
+                copySource &= (SEARCH_SIZE - 1)
+
+        elif nextCommand == BIT_LITERAL:
+            # 1: Literal case.
+            literalByte = romStream.read('uint:8')
+            decomp[decompPos] = literalByte
+            decompPos += 1
+            window[windowPos] = literalByte
+            windowPos += 1
+            windowPos &= (SEARCH_SIZE - 1)
 
     # Calculate the last offset.
     romStream.bytealign()
@@ -144,15 +150,15 @@ if __name__ == "__main__":
         outFile = sys.argv[3]
 
     # Decompress the data.
-    output, lastOffset = decompress(romFile, startOffset)
+    outBytes, lastOffset = decompress(romFile, startOffset)
 
     # Write the decompressed output, if appropriate.
     if outFile is not None:
         outStream = open(outFile, "wb")
-        output.tofile(outStream)
+        outStream.write(outBytes)
         outStream.close()
 
-    # Report the last offset and size of compressed data.
+    # Report the size of the compressed data and last offset.
     sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(lastOffset - startOffset + 1))
     sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(lastOffset))
 

@@ -4,15 +4,14 @@
 # 
 # 
 # 
-# Several SNES games by Quintet share one data compression format.
-# Games that use this format include:
+# This compression format is used by five of Quintet's games:
 #   - ActRaiser
 #   - ActRaiser 2
 #   - Illusion of Gaia
 #   - Robotrek
 #   - Soul Blazer
 # 
-# The format is described in depth in the decompressor's source.
+# The format is described in greater detail in the decompressor.
 # 
 # 
 # 
@@ -28,10 +27,10 @@ import bitstring
 
 def compress(inBytes):
     # Define some useful constants.
-    SEARCH_LOG = 8
-    SEARCH_SIZE = (1 << SEARCH_LOG)
-    LOOKAHEAD_LOG = 4
-    LOOKAHEAD_SIZE = (1 << LOOKAHEAD_LOG)
+    SEARCH_LOG2 = 8
+    SEARCH_SIZE = 1 << SEARCH_LOG2
+    LOOKAHEAD_LOG2 = 4
+    LOOKAHEAD_SIZE = 1 << LOOKAHEAD_LOG2
     BIT_PASTCOPY = 0
     BIT_LITERAL = 1
 
@@ -74,16 +73,13 @@ def compress(inBytes):
                 bestLength = currentLength
 
         # Write the next block of compressed output.
-        pastcopyCost = 1 + SEARCH_LOG + LOOKAHEAD_LOG
-        literalCost = bestLength * (1+8)
-
-        if pastcopyCost < literalCost:
+        if bestLength >= 2:
             # For some reason, the decompressor expects the pastcopy 
             # source values to be offset by 0xEF. I have no idea why.
             bestIndex = (bestIndex + 0xEF) & 0xFF
             output += bitstring.pack('bool', BIT_PASTCOPY)
-            output += bitstring.pack('uint:n=v', n = SEARCH_LOG, v = bestIndex)
-            output += bitstring.pack('uint:n=v', n = LOOKAHEAD_LOG, v = bestLength - 2)
+            output += bitstring.pack('uint:n=v', n = SEARCH_LOG2, v = bestIndex)
+            output += bitstring.pack('uint:n=v', n = LOOKAHEAD_LOG2, v = bestLength - 2)
             currentIndex += bestLength
         else:
             output += bitstring.pack('bool', BIT_LITERAL)
@@ -118,7 +114,7 @@ if __name__ == "__main__":
 
     # Open, read and close the input file.
     inStream = open(inFile, "rb")
-    inBytes = bytes(inStream.read())
+    inBytes = inStream.read()
     inStream.close()
 
     # Compress the data.
