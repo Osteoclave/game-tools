@@ -224,53 +224,49 @@ startOffsets = [
 
 
 
-def decompress(inBytes, startOffset):
+def decompress(inBits, startOffset, numberOfLines):
     # Prepare for decompression.
-    inBytes.bytepos = startOffset
-    outString = ""
+    inBits.bytepos = startOffset
+    outList = []
 
     # Main decompression loop.
-    for i in range(16):
-        # Output the location where the current line starts.
-        lineStartLoc = inBytes.pos
-        outString += "{0:04X}.{1:d}\n".format(
-          lineStartLoc / 8, 
-          lineStartLoc % 8
+    for i in range(numberOfLines):
+        # Record the location where the current line starts.
+        lineStartLoc = "{0:4X}.{1:d}".format(
+          inBits.pos / 8, 
+          inBits.pos % 8
         )
 
         # Read the current line.
         nextLine = ""
         while not nextLine.endswith("<END>"):
-            indice = inBytes.read('uint:5')
+            indice = inBits.read('uint:5')
             if indice < 0x1C:
                 nextLine += dict_Main[indice]
             elif indice == 0x1C:
-                subIndice = inBytes.read('uint:5')
+                subIndice = inBits.read('uint:5')
                 nextLine += dict_C0[subIndice]
             elif indice == 0x1D:
-                subIndice = inBytes.read('uint:5')
+                subIndice = inBits.read('uint:5')
                 nextLine += dict_C1[subIndice]
             elif indice == 0x1E:
-                subIndice = inBytes.read('uint:5')
+                subIndice = inBits.read('uint:5')
                 nextLine += dict_C2[subIndice]
             elif indice == 0x1F:
-                subIndice = inBytes.read('uint:5')
+                subIndice = inBits.read('uint:5')
                 nextLine += dict_C3[subIndice]
 
-        # Output the current line.
-        outString += nextLine
-        outString += "\n"
-
-        # Output the location where the current line ends.
-        lineEndLoc = inBytes.pos - 1
-        outString += "{0:04X}.{1:d}\n".format(
-          lineEndLoc / 8, 
-          lineEndLoc % 8
+        # Record the location where the current line ends.
+        lineEndLoc = "{0:4X}.{1:d}".format(
+          (inBits.pos - 1) / 8, 
+          (inBits.pos - 1) % 8
         )
-        outString += "\n"
 
-    # Return the decompressed text.
-    return outString
+        # Add the current line to the output list.
+        outList.append((nextLine, lineStartLoc, lineEndLoc))
+
+    # Return the decompressed lines.
+    return outList
 
 
 
@@ -295,10 +291,6 @@ if __name__ == "__main__":
     romStream.close()
 
     # Create a byte array containing the game's text.
-    #   14010 to 17FE6 = Compressed text
-    #    B7C2 to  BE0F = Compressed text
-    # The data at B7C2 immediately follows that at 17FE6.
-    # This "break" is actually halfway through a string!
     inBytes = bytearray()
     inBytes += romBytes[0x14010:0x17FE7]
     inBytes += romBytes[0xB7C2:0xBE10]
@@ -307,12 +299,15 @@ if __name__ == "__main__":
     inBits = bitstring.ConstBitStream(inBytes)
 
     # Dump the text.
-    sys.stdout.write("------------------------------------------------------------------------\n")
-    for i in startOffsets:
+    for currentOffset in startOffsets:
+        outList = decompress(inBits, currentOffset, 16)
+        for currentLine in outList:
+            sys.stdout.write("{0:s} to {1:s}    {2:s}\n".format(
+              currentLine[1], 
+              currentLine[2], 
+              currentLine[0]
+            ))
         sys.stdout.write("\n")
-        outString = decompress(inBits, i)
-        sys.stdout.write("{0:s}".format(outString))
-        sys.stdout.write("------------------------------------------------------------------------\n")
 
     # Exit.
     sys.exit(0)

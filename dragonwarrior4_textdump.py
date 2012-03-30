@@ -132,18 +132,17 @@ startOffsets = [
 
 
 
-def decompress(inBytes, startOffset):
+def decompress(inBits, startOffset, numberOfLines):
     # Prepare for decompression.
-    inBytes.bytepos = startOffset
-    outString = ""
+    inBits.bytepos = startOffset
+    outList = []
 
     # Main decompression loop.
-    for i in range(32):
-        # Output the location where the current line starts.
-        lineStartLoc = inBytes.pos
-        outString += "{0:04X}.{1:d}\n".format(
-          lineStartLoc / 8, 
-          lineStartLoc % 8
+    for i in range(numberOfLines):
+        # Record the location where the current line starts.
+        lineStartLoc = "{0:5X}.{1:d}".format(
+          inBits.pos / 8, 
+          inBits.pos % 8
         )
 
         # Read the current line.
@@ -152,28 +151,20 @@ def decompress(inBytes, startOffset):
             # Read the next key.
             nextKey = ""
             while nextKey not in dictHuffman:
-                nextKey += str(inBytes.read('uint:1'))
+                nextKey += str(inBits.read('uint:1'))
             nextLine += dictHuffman[nextKey]
 
-        # Output the current line.
-        outString += nextLine
-        outString += "\n"
-
-        # Output the location where the current line ends.
-        lineEndLoc = inBytes.pos - 1
-        outString += "{0:04X}.{1:d}\n".format(
-          lineEndLoc / 8, 
-          lineEndLoc % 8
+        # Record the location where the current line ends.
+        lineEndLoc = "{0:5X}.{1:d}".format(
+          (inBits.pos - 1) / 8, 
+          (inBits.pos - 1) % 8
         )
-        outString += "\n"
 
-        # Ugly hard-coded termination for the last block.
-        # (It only has 4 lines of text, instead of the usual 32.)
-        if ((lineEndLoc / 8) == 0x1875A) and ((lineEndLoc % 8) == 7):
-            break
+        # Add the current line to the output list.
+        outList.append((nextLine, lineStartLoc, lineEndLoc))
 
-    # Return the decompressed text.
-    return outString
+    # Return the decompressed lines.
+    return outList
 
 
 
@@ -211,12 +202,22 @@ if __name__ == "__main__":
     inBits = bitstring.ConstBitStream(inBytes)
 
     # Dump the text.
-    sys.stdout.write("------------------------------------------------------------------------\n")
-    for i in startOffsets:
+    outList = None
+    for currentOffset in startOffsets:
+        # Ugly special case - the last block seems to have 4 lines instead of 32.
+        if currentOffset == 0x186FB:
+            outList = decompress(inBits, currentOffset, 4)
+        else:
+            outList = decompress(inBits, currentOffset, 32)
+
+        for currentLine in outList:
+            sys.stdout.write("{0:s} to {1:s}    {2:s}\n".format(
+              currentLine[1], 
+              currentLine[2], 
+              currentLine[0]
+            ))
+
         sys.stdout.write("\n")
-        outString = decompress(inBits, i)
-        sys.stdout.write("{0:s}".format(outString))
-        sys.stdout.write("------------------------------------------------------------------------\n")
 
     # Exit.
     sys.exit(0)
