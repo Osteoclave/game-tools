@@ -38,7 +38,7 @@ ySize = 0x10 * struct.unpack("<B", romStream.read(1))[0]
 romStream.close()
 
 # Decompress the arrangement data.
-decompData, lastOffset = quintet_decomp.decompress(romFile, startOffset + 2)
+decompData, endOffset = quintet_decomp.decompress(romFile, startOffset + 2)
 
 # Create the arrangement bitmap.
 canvas = Image.new("RGB", (xSize, ySize))

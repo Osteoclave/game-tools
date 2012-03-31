@@ -25,6 +25,8 @@ import bitstring
 
 
 
+
+
 def compress(inBytes):
     # Define some useful constants.
     SEARCH_LOG2 = 8

@@ -69,6 +69,8 @@ import bitstring
 
 
 
+
+
 def decompress(romFile, startOffset):
     # Define some useful constants.
     SEARCH_LOG2 = 8
@@ -121,12 +123,12 @@ def decompress(romFile, startOffset):
             windowPos += 1
             windowPos &= (SEARCH_SIZE - 1)
 
-    # Calculate the last offset.
+    # Calculate the end offset.
     romStream.bytealign()
-    lastOffset = romStream.bytepos - 1
+    endOffset = romStream.bytepos
 
-    # Return the decompressed data and last offset.
-    return (decomp, lastOffset)
+    # Return the decompressed data and end offset.
+    return (decomp, endOffset)
 
 
 
@@ -150,7 +152,7 @@ if __name__ == "__main__":
         outFile = sys.argv[3]
 
     # Decompress the data.
-    outBytes, lastOffset = decompress(romFile, startOffset)
+    outBytes, endOffset = decompress(romFile, startOffset)
 
     # Write the decompressed output, if appropriate.
     if outFile is not None:
@@ -159,8 +161,8 @@ if __name__ == "__main__":
         outStream.close()
 
     # Report the size of the compressed data and last offset.
-    sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(lastOffset - startOffset + 1))
-    sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(lastOffset))
+    sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(endOffset - startOffset))
+    sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(endOffset - 1))
 
     # Exit.
     sys.exit(0)
