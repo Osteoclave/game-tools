@@ -40,6 +40,8 @@ def lookForConstantByte(buffer, currentIndex):
 def lookForConstantWord(buffer, currentIndex):
     # Don't look past the end of the buffer.
     compareLimit = len(buffer) - currentIndex
+    if (compareLimit % 2) == 1:
+        compareLimit -= 1
 
     # Don't look too far ahead.
     if compareLimit > 2048:
