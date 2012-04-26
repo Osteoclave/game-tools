@@ -45,9 +45,9 @@
 #      - 001 is followed by one uncompressed byte, which is 
 #        written out count-many times.
 # 
-#      - 010 is followed by one uncompressed word, which is 
-#        written out count-many times (low byte, high byte, 
-#        low byte, high byte, etc).
+#      - 010 is followed by one uncompressed little-endian 
+#        word, which is written out count-many times (low byte, 
+#        high byte, low byte, high byte, etc).
 # 
 #      - 011 is followed by one uncompressed byte. This byte 
 #        is written out as-is. The next byte is the first 
@@ -56,9 +56,9 @@
 #        been written. The value being written wraps to 0x00 
 #        after 0xFF if necessary.
 # 
-#     - 100, 101 and 110 are followed by a word indicating 
-#       an absolute location in the already-decompressed 
-#       data to start working from.
+#     - 100, 101 and 110 are followed by a BIG-ENDIAN word 
+#       indicating an absolute location in the previously 
+#       decompressed data to start working from.
 # 
 #     - 111 has the arguments of its internal command.
 # 
