@@ -196,6 +196,7 @@ def encodeCommand(command, count, argument):
         encodedResult.append(count & 0xFF)
 
     if command == 0:
+        # Use extend() instead of append().
         encodedResult.extend(argument)
     elif command == 1:
         encodedResult.append(argument & 0xFF)
@@ -219,6 +220,7 @@ def compress(inBytes):
     buffer = bytearray(inBytes)
     output = bytearray()
     currentIndex = 0
+    queuedLiterals = bytearray()
 
     # Create a copy of the buffer where every the bits of every byte are 
     # reversed (e.g. 0x80 <---> 0x01).
@@ -228,35 +230,83 @@ def compress(inBytes):
         currentByte = ((currentByte >> 2) & 0x33) | ((currentByte << 2) & 0xCC)
         currentByte = ((currentByte >> 1) & 0x55) | ((currentByte << 1) & 0xAA)
 
-    possibleCommands = {
-      1 : lookForConstantByte, 
-      2 : lookForConstantWord, 
-      3 : lookForIncrementingByte, 
-      4 : lookForPastBytesForward, 
-      5 : lookForPastBytesBitReversed, 
-      6 : lookForPastBytesBackward
-    }
-    queuedLiterals = bytearray()
-
     # Main compression loop.
     while currentIndex < len(buffer):
         bestCommand = 0
-        bestLength = 2
+        bestLength = 0
         bestArgument = 0
+        bestRatio = 1.0
 
-        # Find the command that will compress the most upcoming bytes (greedy).
-        for commandNumber in possibleCommands:
-            if commandNumber == 5:
-                # Command 5 copies past bytes, but with the bits of each 
-                # byte in reverse order.
-                length, argument = possibleCommands[commandNumber](buffer, bufferBitReversed, currentIndex)
-            else:
-                length, argument = possibleCommands[commandNumber](buffer, currentIndex)
+        currentLength = 0
+        currentArgument = 0
+        currentRatio = 0.0
 
-            if length > bestLength:
-                bestCommand = commandNumber
-                bestLength = length
-                bestArgument = argument
+        # Find the command that will compress the most upcoming bytes.
+        currentLength, currentArgument = lookForConstantByte(buffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 3
+        else:
+            currentRatio = currentLength / 2
+        if currentRatio > bestRatio:
+            bestCommand = 1
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
+
+        currentLength, currentArgument = lookForConstantWord(buffer, currentIndex)
+        if currentLength >= 64:
+            currentRatio = currentLength / 4
+        else:
+            currentRatio = currentLength / 3
+        if currentRatio > bestRatio:
+            bestCommand = 2
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
+
+        currentLength, currentArgument = lookForIncrementingByte(buffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 3
+        else:
+            currentRatio = currentLength / 2
+        if currentRatio > bestRatio:
+            bestCommand = 3
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
+
+        currentLength, currentArgument = lookForPastBytesForward(buffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 4
+        else:
+            currentRatio = currentLength / 3
+        if currentRatio > bestRatio:
+            bestCommand = 4
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
+
+        currentLength, currentArgument = lookForPastBytesBitReversed(buffer, bufferBitReversed, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 4
+        else:
+            currentRatio = currentLength / 3
+        if currentRatio > bestRatio:
+            bestCommand = 5
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
+
+        currentLength, currentArgument = lookForPastBytesBackward(buffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 4
+        else:
+            currentRatio = currentLength / 3
+        if currentRatio > bestRatio:
+            bestCommand = 6
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
 
         # If none of the commands find a match large enough to be worth 
         # using, the next byte will be encoded as a literal. Don't output 
