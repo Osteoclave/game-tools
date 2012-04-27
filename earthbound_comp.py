@@ -15,19 +15,19 @@ import sys
 
 
 # Check if the upcoming bytes are a run of a constant byte.
-def lookForConstantByte(buffer, currentIndex):
+def lookForConstantByte(inBuffer, currentIndex):
     # Don't look past the end of the buffer.
-    compareLimit = len(buffer) - currentIndex
+    compareLimit = len(inBuffer) - currentIndex
 
     # Don't look too far ahead.
     if compareLimit > 1024:
         compareLimit = 1024
 
-    nextByte = buffer[currentIndex]
+    nextByte = inBuffer[currentIndex]
     matchLength = 0
 
     for i in xrange(compareLimit):
-        if buffer[currentIndex + i] == nextByte:
+        if inBuffer[currentIndex + i] == nextByte:
             matchLength += 1
         else:
             break
@@ -37,9 +37,9 @@ def lookForConstantByte(buffer, currentIndex):
 
 
 # Check if the upcoming words are a run of a constant word.
-def lookForConstantWord(buffer, currentIndex):
+def lookForConstantWord(inBuffer, currentIndex):
     # Don't look past the end of the buffer.
-    compareLimit = len(buffer) - currentIndex
+    compareLimit = len(inBuffer) - currentIndex
     if (compareLimit % 2) == 1:
         compareLimit -= 1
 
@@ -51,13 +51,13 @@ def lookForConstantWord(buffer, currentIndex):
     if compareLimit < 2:
         return 0, None
 
-    nextWord = buffer[currentIndex+0]
-    nextWord += (buffer[currentIndex+1] << 8)
+    nextWord = inBuffer[currentIndex+0]
+    nextWord += (inBuffer[currentIndex+1] << 8)
     matchLength = 0
 
     for i in xrange(0, compareLimit, 2):
-        currentWord = buffer[currentIndex + i + 0]
-        currentWord += (buffer[currentIndex + i + 1] << 8)
+        currentWord = inBuffer[currentIndex + i + 0]
+        currentWord += (inBuffer[currentIndex + i + 1] << 8)
         if currentWord == nextWord:
             matchLength += 2
         else:
@@ -68,19 +68,19 @@ def lookForConstantWord(buffer, currentIndex):
 
 
 # Check if the upcoming bytes are an incrementing run.
-def lookForIncrementingByte(buffer, currentIndex):
+def lookForIncrementingByte(inBuffer, currentIndex):
     # Don't look past the end of the buffer.
-    compareLimit = len(buffer) - currentIndex
+    compareLimit = len(inBuffer) - currentIndex
 
     # Don't look too far ahead.
     if compareLimit > 1024:
         compareLimit = 1024
 
-    nextByte = buffer[currentIndex]
+    nextByte = inBuffer[currentIndex]
     matchLength = 0
 
     for i in xrange(compareLimit):
-        if buffer[currentIndex + i] == ((nextByte + i) & 0xFF):
+        if inBuffer[currentIndex + i] == ((nextByte + i) & 0xFF):
             matchLength += 1
         else:
             break
@@ -90,12 +90,12 @@ def lookForIncrementingByte(buffer, currentIndex):
 
 
 # Check if the upcoming bytes are a copy of previous bytes.
-def lookForPastBytesForward(buffer, currentIndex):
+def lookForPastBytesForward(inBuffer, currentIndex):
     bestIndex = 0
     bestLength = 0
 
     # Don't look past the end of the buffer.
-    compareLimit = len(buffer) - currentIndex
+    compareLimit = len(inBuffer) - currentIndex
 
     # Don't look too far ahead.
     if compareLimit > 1024:
@@ -105,7 +105,7 @@ def lookForPastBytesForward(buffer, currentIndex):
         # Count how many sequential bytes match (possibly zero).
         currentLength = 0
         for j in xrange(compareLimit):
-            if buffer[i + j] == buffer[currentIndex + j]:
+            if inBuffer[i + j] == inBuffer[currentIndex + j]:
                 currentLength += 1
             else:
                 break
@@ -120,12 +120,12 @@ def lookForPastBytesForward(buffer, currentIndex):
 
 
 # Check if the upcoming bytes are a copy of previous bytes.
-def lookForPastBytesBitReversed(buffer, bufferBitReversed, currentIndex):
+def lookForPastBytesBitReversed(inBuffer, inBufferBitReversed, currentIndex):
     bestIndex = 0
     bestLength = 0
 
     # Don't look past the end of the buffer.
-    compareLimit = len(bufferBitReversed) - currentIndex
+    compareLimit = len(inBufferBitReversed) - currentIndex
 
     # Don't look too far ahead.
     if compareLimit > 1024:
@@ -135,7 +135,7 @@ def lookForPastBytesBitReversed(buffer, bufferBitReversed, currentIndex):
         # Count how many sequential bytes match (possibly zero).
         currentLength = 0
         for j in xrange(compareLimit):
-            if bufferBitReversed[i + j] == buffer[currentIndex + j]:
+            if inBufferBitReversed[i + j] == inBuffer[currentIndex + j]:
                 currentLength += 1
             else:
                 break
@@ -150,12 +150,12 @@ def lookForPastBytesBitReversed(buffer, bufferBitReversed, currentIndex):
 
 
 # Check if the upcoming bytes are a backward copy of previous bytes.
-def lookForPastBytesBackward(buffer, currentIndex):
+def lookForPastBytesBackward(inBuffer, currentIndex):
     bestIndex = 0
     bestLength = 0
 
     # Don't look past the end of the buffer.
-    initialCompareLimit = len(buffer) - currentIndex
+    initialCompareLimit = len(inBuffer) - currentIndex
 
     # Don't look too far ahead.
     if initialCompareLimit > 1024:
@@ -170,7 +170,7 @@ def lookForPastBytesBackward(buffer, currentIndex):
         # Count how many sequential bytes match (possibly zero).
         currentLength = 0
         for j in xrange(compareLimit):
-            if buffer[i - j] == buffer[currentIndex + j]:
+            if inBuffer[i - j] == inBuffer[currentIndex + j]:
                 currentLength += 1
             else:
                 break
@@ -217,21 +217,21 @@ def encodeCommand(command, count, argument):
 
 def compress(inBytes):
     # Prepare for compression.
-    buffer = bytearray(inBytes)
+    inBuffer = bytearray(inBytes)
     output = bytearray()
     currentIndex = 0
     queuedLiterals = bytearray()
 
     # Create a copy of the buffer where every the bits of every byte are 
     # reversed (e.g. 0x80 <---> 0x01).
-    bufferBitReversed = bytearray(inBytes)
-    for currentByte in bufferBitReversed:
+    inBufferBitReversed = bytearray(inBytes)
+    for currentByte in inBufferBitReversed:
         currentByte = ((currentByte >> 4) & 0x0F) | ((currentByte << 4) & 0xF0)
         currentByte = ((currentByte >> 2) & 0x33) | ((currentByte << 2) & 0xCC)
         currentByte = ((currentByte >> 1) & 0x55) | ((currentByte << 1) & 0xAA)
 
     # Main compression loop.
-    while currentIndex < len(buffer):
+    while currentIndex < len(inBuffer):
         bestCommand = 0
         bestLength = 0
         bestArgument = 0
@@ -242,7 +242,7 @@ def compress(inBytes):
         currentRatio = 0.0
 
         # Find the command that will compress the most upcoming bytes.
-        currentLength, currentArgument = lookForConstantByte(buffer, currentIndex)
+        currentLength, currentArgument = lookForConstantByte(inBuffer, currentIndex)
         if currentLength >= 32:
             currentRatio = currentLength / 3
         else:
@@ -253,7 +253,7 @@ def compress(inBytes):
             bestArgument = currentArgument
             bestRatio = currentRatio
 
-        currentLength, currentArgument = lookForConstantWord(buffer, currentIndex)
+        currentLength, currentArgument = lookForConstantWord(inBuffer, currentIndex)
         if currentLength >= 64:
             currentRatio = currentLength / 4
         else:
@@ -264,7 +264,7 @@ def compress(inBytes):
             bestArgument = currentArgument
             bestRatio = currentRatio
 
-        currentLength, currentArgument = lookForIncrementingByte(buffer, currentIndex)
+        currentLength, currentArgument = lookForIncrementingByte(inBuffer, currentIndex)
         if currentLength >= 32:
             currentRatio = currentLength / 3
         else:
@@ -275,7 +275,7 @@ def compress(inBytes):
             bestArgument = currentArgument
             bestRatio = currentRatio
 
-        currentLength, currentArgument = lookForPastBytesForward(buffer, currentIndex)
+        currentLength, currentArgument = lookForPastBytesForward(inBuffer, currentIndex)
         if currentLength >= 32:
             currentRatio = currentLength / 4
         else:
@@ -286,7 +286,7 @@ def compress(inBytes):
             bestArgument = currentArgument
             bestRatio = currentRatio
 
-        currentLength, currentArgument = lookForPastBytesBitReversed(buffer, bufferBitReversed, currentIndex)
+        currentLength, currentArgument = lookForPastBytesBitReversed(inBuffer, inBufferBitReversed, currentIndex)
         if currentLength >= 32:
             currentRatio = currentLength / 4
         else:
@@ -297,7 +297,7 @@ def compress(inBytes):
             bestArgument = currentArgument
             bestRatio = currentRatio
 
-        currentLength, currentArgument = lookForPastBytesBackward(buffer, currentIndex)
+        currentLength, currentArgument = lookForPastBytesBackward(inBuffer, currentIndex)
         if currentLength >= 32:
             currentRatio = currentLength / 4
         else:
@@ -314,7 +314,7 @@ def compress(inBytes):
         # encoded as several one-byte commands instead of a single 
         # multi-byte command.)
         if bestCommand == 0:
-            queuedLiterals.append(buffer[currentIndex])
+            queuedLiterals.append(inBuffer[currentIndex])
             currentIndex += 1
             continue
 

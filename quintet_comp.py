@@ -37,9 +37,9 @@ def compress(inBytes):
     BIT_LITERAL = 1
 
     # Prepare the memory buffer.
-    buffer = bytearray(SEARCH_SIZE + len(inBytes))
-    buffer[:SEARCH_SIZE] = [0x20] * SEARCH_SIZE
-    buffer[SEARCH_SIZE:] = inBytes
+    inBuffer = bytearray(SEARCH_SIZE + len(inBytes))
+    inBuffer[:SEARCH_SIZE] = [0x20] * SEARCH_SIZE
+    inBuffer[SEARCH_SIZE:] = inBytes
 
     # Prepare for compression.
     output = bitstring.BitArray()
@@ -47,7 +47,7 @@ def compress(inBytes):
     currentIndex = SEARCH_SIZE
 
     # Main compression loop.
-    while currentIndex < len(buffer):
+    while currentIndex < len(inBuffer):
         bestIndex = 0
         bestLength = 0
 
@@ -57,14 +57,14 @@ def compress(inBytes):
             # Don't compare past the end of the memory buffer.
             compareLimit = min(
               LOOKAHEAD_SIZE - 1,
-              len(buffer) - currentIndex
+              len(inBuffer) - currentIndex
             )
 
             # Compare the search buffer to the lookahead buffer.
             # Count how many sequential bytes match (possibly zero).
             currentLength = 0
             for j in range(compareLimit):
-                if buffer[currentIndex - SEARCH_SIZE + i + j] == buffer[currentIndex + j]:
+                if inBuffer[currentIndex - SEARCH_SIZE + i + j] == inBuffer[currentIndex + j]:
                     currentLength += 1
                 else:
                     break
@@ -85,7 +85,7 @@ def compress(inBytes):
             currentIndex += bestLength
         else:
             output += bitstring.pack('bool', BIT_LITERAL)
-            output += bitstring.pack('uint:8', buffer[currentIndex])
+            output += bitstring.pack('uint:8', inBuffer[currentIndex])
             currentIndex += 1
 
     # Return the compressed data.
