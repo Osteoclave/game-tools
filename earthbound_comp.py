@@ -14,6 +14,15 @@ import sys
 
 
 
+# Reverse the bits of a byte (e.g. 0x80 <---> 0x01).
+def reverseByte(currentByte):
+    currentByte = ((currentByte >> 4) & 0x0F) | ((currentByte << 4) & 0xF0)
+    currentByte = ((currentByte >> 2) & 0x33) | ((currentByte << 2) & 0xCC)
+    currentByte = ((currentByte >> 1) & 0x55) | ((currentByte << 1) & 0xAA)
+    return currentByte
+
+
+
 # Command 1: Run of a constant byte
 def lookForConstantByte(inBuffer, currentIndex):
     # Don't look past the end of the buffer.
@@ -227,13 +236,9 @@ def compress(inBytes):
     currentIndex = 0
     queuedLiterals = bytearray()
 
-    # Create a copy of the buffer where every the bits of every byte are 
+    # Create a copy of the buffer where the bits of every byte are
     # reversed (e.g. 0x80 <---> 0x01).
-    inBufferBitReversed = bytearray(inBytes)
-    for currentByte in inBufferBitReversed:
-        currentByte = ((currentByte >> 4) & 0x0F) | ((currentByte << 4) & 0xF0)
-        currentByte = ((currentByte >> 2) & 0x33) | ((currentByte << 2) & 0xCC)
-        currentByte = ((currentByte >> 1) & 0x55) | ((currentByte << 1) & 0xAA)
+    inBufferBitReversed = bytearray(map(reverseByte, inBuffer))
 
     # Main compression loop.
     while currentIndex < len(inBuffer):
@@ -247,8 +252,17 @@ def compress(inBytes):
         currentRatio = 0.0
 
         # Find the command that will compress the most upcoming bytes.
-        # Check command 2 (run of a constant word) first, since it can 
-        # potentially compress the most.
+        # Command 1: Run of a constant byte
+        currentLength, currentArgument = lookForConstantByte(inBuffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 3
+        else:
+            currentRatio = currentLength / 2
+        if currentRatio > bestRatio:
+            bestCommand = 1
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
 
         # Command 2: Run of a constant word
         currentLength, currentArgument = lookForConstantWord(inBuffer, currentIndex)
@@ -262,70 +276,53 @@ def compress(inBytes):
             bestArgument = currentArgument
             bestRatio = currentRatio
 
-        # If command 2 (run of a constant word) can compress 1024 or 
-        # more of the upcoming bytes, there's no point in checking 
-        # the other commands. 2 has already won.
+        # Command 3: Run of incrementing bytes
+        currentLength, currentArgument = lookForIncrementingByte(inBuffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 3
+        else:
+            currentRatio = currentLength / 2
+        if currentRatio > bestRatio:
+            bestCommand = 3
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
 
-        if bestLength < 1024:
-            # Command 1: Run of a constant byte
-            currentLength, currentArgument = lookForConstantByte(inBuffer, currentIndex)
-            if currentLength >= 32:
-                currentRatio = currentLength / 3
-            else:
-                currentRatio = currentLength / 2
-            if currentRatio > bestRatio:
-                bestCommand = 1
-                bestLength = currentLength
-                bestArgument = currentArgument
-                bestRatio = currentRatio
+        # Command 4: Copy past bytes
+        currentLength, currentArgument = lookForPastBytesForward(inBuffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 4
+        else:
+            currentRatio = currentLength / 3
+        if currentRatio > bestRatio:
+            bestCommand = 4
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
 
-            # Command 3: Run of incrementing bytes
-            currentLength, currentArgument = lookForIncrementingByte(inBuffer, currentIndex)
-            if currentLength >= 32:
-                currentRatio = currentLength / 3
-            else:
-                currentRatio = currentLength / 2
-            if currentRatio > bestRatio:
-                bestCommand = 3
-                bestLength = currentLength
-                bestArgument = currentArgument
-                bestRatio = currentRatio
+        # Command 5: Copy past bytes (with bits in reverse order)
+        currentLength, currentArgument = lookForPastBytesBitReversed(inBuffer, inBufferBitReversed, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 4
+        else:
+            currentRatio = currentLength / 3
+        if currentRatio > bestRatio:
+            bestCommand = 5
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
 
-            # Command 4: Copy past bytes
-            currentLength, currentArgument = lookForPastBytesForward(inBuffer, currentIndex)
-            if currentLength >= 32:
-                currentRatio = currentLength / 4
-            else:
-                currentRatio = currentLength / 3
-            if currentRatio > bestRatio:
-                bestCommand = 4
-                bestLength = currentLength
-                bestArgument = currentArgument
-                bestRatio = currentRatio
-
-            # Command 5: Copy past bytes (with bits in reverse order)
-            currentLength, currentArgument = lookForPastBytesBitReversed(inBuffer, inBufferBitReversed, currentIndex)
-            if currentLength >= 32:
-                currentRatio = currentLength / 4
-            else:
-                currentRatio = currentLength / 3
-            if currentRatio > bestRatio:
-                bestCommand = 5
-                bestLength = currentLength
-                bestArgument = currentArgument
-                bestRatio = currentRatio
-
-            # Command 6: Copy past bytes (backward)
-            currentLength, currentArgument = lookForPastBytesBackward(inBuffer, currentIndex)
-            if currentLength >= 32:
-                currentRatio = currentLength / 4
-            else:
-                currentRatio = currentLength / 3
-            if currentRatio > bestRatio:
-                bestCommand = 6
-                bestLength = currentLength
-                bestArgument = currentArgument
-                bestRatio = currentRatio
+        # Command 6: Copy past bytes (backward)
+        currentLength, currentArgument = lookForPastBytesBackward(inBuffer, currentIndex)
+        if currentLength >= 32:
+            currentRatio = currentLength / 4
+        else:
+            currentRatio = currentLength / 3
+        if currentRatio > bestRatio:
+            bestCommand = 6
+            bestLength = currentLength
+            bestArgument = currentArgument
+            bestRatio = currentRatio
 
         # If none of the commands find a match large enough to be worth 
         # using, the next byte will be encoded as a literal. Don't output 
