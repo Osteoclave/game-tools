@@ -12,10 +12,10 @@
 #      - 000: Literal bytes
 #      - 001: Run of a constant byte
 #      - 010: Run of a constant word
-#      - 011: Run of an incrementing byte
+#      - 011: Run of incrementing bytes
 #      - 100: Copy past bytes
-#      - 101: Copy past bytes with bits in reverse order
-#      - 110: Copy past bytes in reverse order
+#      - 101: Copy past bytes (with bits in reverse order)
+#      - 110: Copy past bytes (backward)
 #      - 111: Large-count command
 # 
 #   - Each command begins with its three identifying bits.
@@ -67,6 +67,8 @@
 # This code uses python-bitstring version 2.2.0:
 # http://code.google.com/p/python-bitstring/
 
+from __future__ import division
+
 import sys
 import bitstring
 
@@ -101,27 +103,27 @@ def decompress(romFile, startOffset):
         # Parse the next command.
         if nextCommand == 0:
             # 0 (000): Literal bytes
-            for i in range(nextCount):
+            for i in xrange(nextCount):
                 decomp.append(romStream.read('uint:8'))
 
         elif nextCommand == 1:
             # 1 (001): Run of a constant byte
             constantByte = romStream.read('uint:8')
-            for i in range(nextCount):
+            for i in xrange(nextCount):
                 decomp.append(constantByte)
 
         elif nextCommand == 2:
             # 2 (010): Run of a constant word
             constantLow = romStream.read('uint:8')
             constantHigh = romStream.read('uint:8')
-            for i in range(nextCount):
+            for i in xrange(nextCount):
                 decomp.append(constantLow)
                 decomp.append(constantHigh)
 
         elif nextCommand == 3:
-            # 3 (011): Run of an incrementing byte
+            # 3 (011): Run of incrementing bytes
             incrementingByte = romStream.read('uint:8')
-            for i in range(nextCount):
+            for i in xrange(nextCount):
                 decomp.append(incrementingByte)
                 incrementingByte += 1
                 incrementingByte &= 0xFF
@@ -129,14 +131,14 @@ def decompress(romFile, startOffset):
         elif nextCommand == 4:
             # 4 (100): Copy past bytes
             pastIndex = romStream.read('uintbe:16')
-            for i in range(nextCount):
+            for i in xrange(nextCount):
                 decomp.append(decomp[pastIndex])
                 pastIndex += 1
 
         elif nextCommand == 5:
-            # 5 (101): Copy past bytes with bits in reverse order
+            # 5 (101): Copy past bytes (with bits in reverse order)
             pastIndex = romStream.read('uintbe:16')
-            for i in range(nextCount):
+            for i in xrange(nextCount):
                 # Reverse the bits of a past byte (e.g. 0x80 <---> 0x01)
                 pastByte = decomp[pastIndex]
                 pastByte = ((pastByte >> 4) & 0x0F) | ((pastByte << 4) & 0xF0)
@@ -146,9 +148,9 @@ def decompress(romFile, startOffset):
                 pastIndex += 1
 
         elif nextCommand == 6:
-            # 6 (110): Copy past bytes in reverse order
+            # 6 (110): Copy past bytes (backward)
             pastIndex = romStream.read('uintbe:16')
-            for i in range(nextCount):
+            for i in xrange(nextCount):
                 decomp.append(decomp[pastIndex])
                 pastIndex -= 1
 
@@ -183,6 +185,7 @@ if __name__ == "__main__":
 
     # Decompress the data.
     outBytes, endOffset = decompress(romFile, startOffset)
+    outSize = endOffset - startOffset
 
     # Write the decompressed output, if appropriate.
     if outFile is not None:
@@ -190,9 +193,11 @@ if __name__ == "__main__":
         outStream.write(outBytes)
         outStream.close()
 
-    # Report the size of the compressed data and last offset.
-    sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(endOffset - startOffset))
+    # Report statistics on the data.
     sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(endOffset - 1))
+    sys.stdout.write("Compressed size: 0x{0:X} ({0:d}) bytes\n".format(outSize))
+    sys.stdout.write("Uncompressed size: 0x{0:X} ({0:d}) bytes\n".format(len(outBytes)))
+    sys.stdout.write("Ratio: {0:f}\n".format(outSize / len(outBytes)))
 
     # Exit.
     sys.exit(0)
