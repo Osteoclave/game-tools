@@ -5,6 +5,8 @@
 # This code uses python-bitstring version 2.2.0:
 # http://code.google.com/p/python-bitstring/
 
+from __future__ import print_function
+
 import sys
 import bitstring
 
@@ -203,7 +205,10 @@ if __name__ == "__main__":
 
         print("{0:5X}".format(startPos))
         print("")
-        print("   Image = {0:6X}".format(imagePointer))
+        print("   Image = {0:6X}".format(imagePointer), end="")
+        if imageFlipped:
+            print(" (flipped horizontally)", end="")
+        print("")
         print("   Music = {0:s}".format(converseMusicDict[converseMusic]))
         print("")
         nextKeyword = romStream.read('uint:8')
