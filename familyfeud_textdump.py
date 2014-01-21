@@ -1,10 +1,14 @@
-# Family Feud Text Viewer
+# Family Feud Text Dumper
 # Written by Alchemic
 # 2012 Sep 15
 # 
+# 
+# 
 # Produces a nicely-formatted dump of the game's questions and answers.
 # 
-# This code uses python-bitstring version 2.2.0:
+# 
+# 
+# This code uses python-bitstring:
 # http://code.google.com/p/python-bitstring/
 
 import sys

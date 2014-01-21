@@ -2,7 +2,9 @@
 # Written by Alchemic
 # 2013 Jul 13 (rewrite of 2011 Aug 26 code)
 # 
-# This code uses python-bitstring version 2.2.0:
+# 
+# 
+# This code uses python-bitstring:
 # http://code.google.com/p/python-bitstring/
 
 from __future__ import print_function

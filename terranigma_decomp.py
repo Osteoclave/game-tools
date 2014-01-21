@@ -1,6 +1,6 @@
 # Terranigma Decompressor
 # Written by Alchemic
-# 2011 Sep 10
+# 2014 Jan 21 (rewrite of 2011 Sep 10 code)
 # 
 # 
 # 
@@ -73,7 +73,7 @@
 # 
 # 
 # 
-# This code uses python-bitstring version 2.2.0:
+# This code uses python-bitstring:
 # http://code.google.com/p/python-bitstring/
 
 import sys

@@ -6,7 +6,9 @@
 # 
 # The format is described in greater detail in the decompressor.
 # 
-# This code uses python-bitstring version 2.2.0:
+# 
+# 
+# This code uses python-bitstring:
 # http://code.google.com/p/python-bitstring/
 
 from __future__ import division

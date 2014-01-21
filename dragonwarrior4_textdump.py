@@ -1,10 +1,10 @@
-# Dragon Warrior IV Text Viewer
+# Dragon Warrior IV Text Dumper
 # Written by Alchemic
 # 2012 Feb 26
 # 
 # 
 # 
-# This code uses python-bitstring version 2.2.0:
+# This code uses python-bitstring:
 # http://code.google.com/p/python-bitstring/
 
 import sys
