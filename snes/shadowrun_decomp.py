@@ -6,13 +6,14 @@
 # 
 # A detailed description of the compression format:
 # 
-#   - Compressed data consists of three parts: the header, the data 
-#     section, and the control section.
+#   - Compressed data can be divided into three parts: the header, 
+#     the data section, and the control section.
 # 
-#   - The header consists of two 16-bit integers. The first contains 
-#     the length of the data once decompressed. The second indicates 
-#     where the control section starts (this integer's address plus 
-#     its value).
+#   - The header consists of two 16-bit integers. The first indicates 
+#     the length of the decompressed data. The second points to the 
+#     start of the control section, which is located at:
+# 
+#        (second integer's address) + (second integer's value)
 # 
 #   - For example, here's the header for the Oldtown Magic Shop's 
 #     compressed drawing data (0x5F163):
@@ -27,51 +28,55 @@
 #     before the control section. It is read sequentially by literal 
 #     commands, which we will see in a moment.
 # 
-#   - The control section consists of a stream of bits that break 
-#     down into two commands, "literal" and "pastcopy". The bits are 
-#     read from one byte at a time, most significant to least (0x80, 
-#     0x40, 0x20 ... 0x01). The first command is always literal.
+#   - The control section is a stream of bits used by the "literal" 
+#     and "pastcopy" commands. The bits are read from one byte at a 
+#     time, most significant to least (0x80, 0x40, 0x20 ... 0x01). 
+#     The first command is always literal, but this isn't indicated 
+#     by anything in the control section.
 # 
-#   - The literal command copies a specified number of bytes 
-#     from the data section into the decompressed output.
+#   - The literal command copies a specified number of bytes from the 
+#     data section into the decompressed output.
+# 
 #     To read a literal:
 #      - Set the initial amount to 1.
-#      - Read one bit.
+#      - Read one bit from the control section.
 #      - If this bit is 0, the literal continues. Shift the amount 
-#        left once, add this bit to the amount, and return to the 
-#        previous step.
+#        left once, add the next bit in the control section to the 
+#        amount, and return to the previous step.
 #      - If this bit is 1, the literal is done. Copy the specified 
 #        amount of bytes from the data section into the output.
 # 
 #   - Some sample literals:
 # 
-#                  1 --> Copy  1 byte  (binary      1)
-#                001 --> Copy  2 bytes (binary     10)
-#                011 --> Copy  3 bytes (binary     11)
-#              00001 --> Copy  4 bytes (binary    100)
-#              00011 --> Copy  5 bytes (binary    101)
-#              01001 --> Copy  6 bytes (binary    110)
-#              01011 --> Copy  7 bytes (binary    111)
-#            0000001 --> Copy  8 bytes (binary   1000)
-#        01000100001 --> Copy 52 bytes (binary 110100)
+#                       1 --> Copy  1 byte  (binary      1)
+#                    00 1 --> Copy  2 bytes (binary     10)
+#                    01 1 --> Copy  3 bytes (binary     11)
+#                 00 00 1 --> Copy  4 bytes (binary    100)
+#                 00 01 1 --> Copy  5 bytes (binary    101)
+#                 01 00 1 --> Copy  6 bytes (binary    110)
+#                 01 01 1 --> Copy  7 bytes (binary    111)
+#              00 00 00 1 --> Copy  8 bytes (binary   1000)
+#        01 00 01 00 00 1 --> Copy 52 bytes (binary 110100)
 # 
-#   - If there is still data left to decompress after a literal, 
-#     a pastcopy follows.
+#   - If there is still data left to decompress after a literal, a 
+#     pastcopy follows.
 # 
 #   - The pastcopy command consists of three parts.
-#      - The first is the source: an uninterrupted sequence of bits
-#        of length N, where N = log2(number of bytes decompressed),
+#      - The first is the source: an uninterrupted sequence of bits 
+#        of length N, where N = log2(number of bytes decompressed), 
 #        indicating where to copy from.
 #      - The second is the amount, which is encoded using the same 
 #        scheme as the amount in the literal case. Add 2 to this 
 #        amount once you have it.
-#      - The third is a single bit, indicating what the next command
+#      - The third is a single bit, indicating what the next command 
 #        is: 0 for a literal, and 1 for another pastcopy.
 # 
 # 
 # 
 # This code uses python-bitstring:
-# http://code.google.com/p/python-bitstring/
+# https://pypi.python.org/pypi/bitstring
+
+from __future__ import print_function
 
 import sys
 import bitstring
@@ -80,21 +85,21 @@ import bitstring
 
 
 
-def decompress(romFile, startOffset):
+def decompress(inBytes, startOffset=0):
     # Define some useful constants.
     BIT_LITERAL = 0
     BIT_PASTCOPY = 1
 
-    # Open the ROM.
-    romStream = bitstring.ConstBitStream(filename=romFile)
-    romStream.bytepos += startOffset
+    # Prepare to read the compressed bytes.
+    inStream = bitstring.ConstBitStream(bytes=inBytes)
+    inStream.bytepos += startOffset
 
     # Allocate memory for the decompression process.
-    decompSize = romStream.read('uintle:16')
+    decompSize = inStream.read('uintle:16')
     decomp = bytearray([0x00] * decompSize)
     decompPos = 0
-    dataSize = romStream.read('uintle:16') - 2
-    data = romStream.read('bytes:{0:d}'.format(dataSize))
+    dataSize = inStream.read('uintle:16') - 2
+    data = inStream.read('bytes:{0:d}'.format(dataSize))
     dataPos = 0
 
     # The first command is always literal.
@@ -108,12 +113,12 @@ def decompress(romFile, startOffset):
 
             # Read the number of bytes to copy.
             copyAmount = 1
-            stopBit = romStream.read('bool')
+            stopBit = inStream.read('bool')
             while stopBit == False:
                 copyAmount <<= 1
-                dataBit = int(romStream.read('bool'))
+                dataBit = int(inStream.read('bool'))
                 copyAmount += dataBit
-                stopBit = romStream.read('bool')
+                stopBit = inStream.read('bool')
 
             # Truncate the copy if it would exceed decompSize.
             if (decompPos + copyAmount) >= decompSize:
@@ -133,16 +138,16 @@ def decompress(romFile, startOffset):
 
         # Read the source.
         copySourceLength = len(bin(decompPos).lstrip('0b'))
-        copySource = romStream.read('uint:{0:d}'.format(copySourceLength))
+        copySource = inStream.read('uint:{0:d}'.format(copySourceLength))
 
         # Read the amount.
         copyAmount = 1
-        stopBit = romStream.read('bool')
+        stopBit = inStream.read('bool')
         while stopBit == False:
             copyAmount <<= 1
-            dataBit = int(romStream.read('bool'))
+            dataBit = int(inStream.read('bool'))
             copyAmount += dataBit
-            stopBit = romStream.read('bool')
+            stopBit = inStream.read('bool')
         copyAmount += 2
 
         # Truncate the copy if it would exceed decompSize.
@@ -161,11 +166,11 @@ def decompress(romFile, startOffset):
             break
 
         # Otherwise, find out what the next command is.
-        nextCommand = romStream.read('bool')
+        nextCommand = inStream.read('bool')
 
     # Calculate the end offset.
-    romStream.bytealign()
-    endOffset = romStream.bytepos
+    inStream.bytealign()
+    endOffset = inStream.bytepos
 
     # Return the decompressed data and end offset.
     return (decomp, endOffset)
@@ -179,20 +184,23 @@ if __name__ == "__main__":
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 3 or argc > 4:
-        sys.stdout.write("Usage: ")
-        sys.stdout.write("{0:s} ".format(sys.argv[0]))
-        sys.stdout.write("<romFile> <startOffset> [outFile]\n")
+        print("Usage: {0:s} <inFile> <startOffset> [outFile]".format(sys.argv[0]))
         sys.exit(1)
 
     # Copy the arguments.
-    romFile = sys.argv[1]
+    inFile = sys.argv[1]
     startOffset = int(sys.argv[2], 16)
     outFile = None
     if argc == 4:
         outFile = sys.argv[3]
 
+    # Open, read and close the input file.
+    inStream = open(inFile, "rb")
+    inBytes = inStream.read()
+    inStream.close()
+
     # Decompress the data.
-    outBytes, endOffset = decompress(romFile, startOffset)
+    outBytes, endOffset = decompress(inBytes, startOffset)
 
     # Write the decompressed output, if appropriate.
     if outFile is not None:
@@ -201,8 +209,8 @@ if __name__ == "__main__":
         outStream.close()
 
     # Report the size of the compressed data and last offset.
-    sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(endOffset - startOffset))
-    sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(endOffset - 1))
+    print("Original compressed size: 0x{0:X} ({0:d}) bytes".format(endOffset - startOffset))
+    print("Last offset read, inclusive: {0:X}".format(endOffset - 1))
 
     # Exit.
     sys.exit(0)
