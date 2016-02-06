@@ -4,41 +4,44 @@
 # 
 # 
 # 
-# This code uses PIL (Python Imaging Library) version 1.1.7:
+# This code uses the Python Imaging Library (PIL):
 # http://www.pythonware.com/products/pil/
 
+from __future__ import print_function
+
 import sys
-import struct
 import quintet_decomp
 
 from PIL import Image
 
 
 
+
+
 # Check for incorrect usage.
 argc = len(sys.argv)
 if argc < 3 or argc > 4:
-    sys.stdout.write("Usage: ")
-    sys.stdout.write("{0:s} ".format(sys.argv[0]))
-    sys.stdout.write("<romFile> <startOffset> [outFile]\n")
+    print("Usage: {0:s} <inFile> <startOffset> [outFile]".format(sys.argv[0]))
     sys.exit(1)
 
 # Copy the arguments.
-romFile = sys.argv[1]
+inFile = sys.argv[1]
 startOffset = int(sys.argv[2], 16)
-outFile = "{0:s}_{1:06X}.png".format(romFile, startOffset)
+outFile = "{0:s}_{1:06X}.png".format(inFile, startOffset)
 if argc == 4:
     outFile = sys.argv[3]
 
+# Open, read and close the input file.
+inStream = open(inFile, "rb")
+inBytes = inStream.read()
+inStream.close()
+
 # Read the size bytes.
-romStream = open(romFile, "rb")
-romStream.seek(startOffset)
-xSize = 0x10 * struct.unpack("<B", romStream.read(1))[0]
-ySize = 0x10 * struct.unpack("<B", romStream.read(1))[0]
-romStream.close()
+xSize = 0x10 * ord(inBytes[startOffset + 0])
+ySize = 0x10 * ord(inBytes[startOffset + 1])
 
 # Decompress the arrangement data.
-decompData, endOffset = quintet_decomp.decompress(romFile, startOffset + 2)
+outBytes, endOffset = quintet_decomp.decompress(inBytes, startOffset + 2)
 
 # Create the arrangement bitmap.
 canvas = Image.new("RGB", (xSize, ySize))
@@ -52,7 +55,7 @@ for y in range(ySize):
         currentIndex += (0x10 * (y % 0x10))
         currentIndex += (0x1 * (x % 0x10))
 
-        currentTile = decompData[currentIndex]
+        currentTile = outBytes[currentIndex]
 
         # This produces a nice orange-and-blue scheme.
         canvas.putpixel(

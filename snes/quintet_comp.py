@@ -16,8 +16,9 @@
 # 
 # 
 # This code uses python-bitstring:
-# http://code.google.com/p/python-bitstring/
+# https://pypi.python.org/pypi/bitstring
 
+from __future__ import print_function
 from __future__ import division
 
 import sys
@@ -30,9 +31,9 @@ import bitstring
 def compress(inBytes):
     # Define some useful constants.
     SEARCH_LOG2 = 8
-    SEARCH_SIZE = 1 << SEARCH_LOG2
+    SEARCH_SIZE = 2 ** SEARCH_LOG2
     LOOKAHEAD_LOG2 = 4
-    LOOKAHEAD_SIZE = 1 << LOOKAHEAD_LOG2
+    LOOKAHEAD_SIZE = 2 ** LOOKAHEAD_LOG2
     BIT_PASTCOPY = 0
     BIT_LITERAL = 1
 
@@ -100,9 +101,7 @@ if __name__ == "__main__":
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 2 or argc > 4:
-        sys.stdout.write("Usage: ")
-        sys.stdout.write("{0:s} ".format(sys.argv[0]))
-        sys.stdout.write("<inFile> [outFile] [outOffset]\n")
+        print("Usage: {0:s} <inFile> [outFile] [outOffset]".format(sys.argv[0]))
         sys.exit(1)
 
     # Copy the arguments.
@@ -132,9 +131,9 @@ if __name__ == "__main__":
         outStream.close()
 
     # Report statistics on the data.
-    sys.stdout.write("Uncompressed size: 0x{0:X} ({0:d}) bytes\n".format(len(inBytes)))
-    sys.stdout.write("Compressed size: 0x{0:X} ({0:d}) bytes\n".format(len(outBytes)))
-    sys.stdout.write("Ratio: {0:f}\n".format(len(outBytes) / len(inBytes)))
+    print("Uncompressed size: 0x{0:X} ({0:d}) bytes".format(len(inBytes)))
+    print("Compressed size: 0x{0:X} ({0:d}) bytes".format(len(outBytes)))
+    print("Ratio: {0:f}".format(len(outBytes) / len(inBytes)))
 
     # Exit.
     sys.exit(0)
