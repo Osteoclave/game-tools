@@ -14,13 +14,13 @@
 # A terse description of the compression format:
 # 
 #    LZSS with a 256-byte sliding window and a 16-byte lookahead, 
-#    allowing copying of 2-17 previously-seen bytes. The window 
-#    is initially filled with 0x20s. References to past data use 
+#    allowing copying of 2-17 previously-seen bytes. The window is 
+#    initially filled with 0x20s. References to past data use 
 #    absolute positions in the window and decompressed bytes are 
-#    written in the window starting at position 0xEF. Control 
-#    bits (indicating what follows is pastcopy or literal) are
-#    part of the stream, rather than being grouped into eights 
-#    and packed into their own bytes.
+#    written in the window starting at position 0xEF. Control bits 
+#    (indicating what follows is pastcopy or literal) are part of 
+#    the stream, rather than being grouped into eights and packed 
+#    into their own bytes.
 # 
 # 
 # 
@@ -29,35 +29,35 @@
 #   - Compressed data is prefixed with a 16-bit integer indicating 
 #     the length of the data once decompressed.
 # 
-#   - Following this is the compressed data itself: a stream of 
-#     bits that breaks down into two commands, "pastcopy" and 
-#     "literal". Bits are read from one byte at a time, most 
-#     significant to least (0x80, 0x40, 0x20 ... 0x01).
+#   - Following this is the compressed data itself: a stream of bits 
+#     that breaks down into two commands, "pastcopy" and "literal". 
+#     Bits are read from one byte at a time, most significant to 
+#     least (0x80, 0x40, 0x20 ... 0x01).
 # 
 #        Pastcopy = [0 SSSSSSSS LLLL]
 #        Literal  = [1 NNNNNNNN]
 # 
-#   - Pastcopy copies data from the sliding window. The S argument
-#     is the source, which is an absolute position in the sliding
-#     window (i.e. NOT relative to the last-written position); the
-#     L argument indicates how many bytes to copy. Since we'd never
-#     copy 0 bytes (wastes 13 bits to do nothing) or 1 byte (using
-#     a literal saves 4 bits), we actually copy L+2 bytes.
+#   - Pastcopy copies data from the sliding window. The S argument is 
+#     the source, which is an absolute position in the sliding window 
+#     (i.e. NOT relative to the last-written position); the L 
+#     argument indicates how many bytes to copy. Since we'd never 
+#     copy 0 bytes (wastes 13 bits to do nothing) or 1 byte (using a 
+#     literal saves 4 bits), we actually copy L+2 bytes.
 # 
-#   - Literal is exactly what it says on the tin. The N argument 
-#     is one uncompressed byte.
+#   - Literal is exactly what it says on the tin. The N argument is 
+#     one uncompressed byte.
 # 
-#   - Whenever we decompress a byte, we write it to both the output
-#     buffer and the sliding window. Curiously, we don't start at
-#     the beginning of the window. Instead, the first decompressed
-#     byte goes to position 0xEF, the second to position 0xF0, and
-#     so on up, wrapping after 0xFF to 0x00.
+#   - Whenever we decompress a byte, we write it to both the output 
+#     buffer and the sliding window. Curiously, we don't start at the 
+#     beginning of the window. Instead, the first decompressed byte 
+#     goes to position 0xEF, the second to position 0xF0, and so on 
+#     up, wrapping after 0xFF to 0x00.
 # 
 #   - The sliding window is initially populated with 0x20s. One 
-#     consequence of this is pastcopies from "negative" positions
-#     (i.e. copying from sliding window positions that haven't 
-#     been filled with decompressed bytes yet), which happens if 
-#     the original data had 0x20s early on.
+#     consequence of this is pastcopies from "negative" positions 
+#     (i.e. copying from sliding window positions that haven't been 
+#     filled with decompressed bytes yet), which happens if the 
+#     original data had 0x20s early on.
 # 
 # 
 # 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
 
     # Report the size of the compressed data and last offset.
     print("Original compressed size: 0x{0:X} ({0:d}) bytes".format(endOffset - startOffset))
-    print("Last offset read, inclusive: {0:X}\n".format(endOffset - 1))
+    print("Last offset read, inclusive: {0:X}".format(endOffset - 1))
 
     # Exit.
     sys.exit(0)
