@@ -62,7 +62,9 @@
 # 
 # 
 # This code uses python-bitstring:
-# http://code.google.com/p/python-bitstring/
+# https://pypi.python.org/pypi/bitstring
+
+from __future__ import print_function
 
 import sys
 import bitstring
@@ -71,21 +73,21 @@ import bitstring
 
 
 
-def decompress(romFile, startOffset):
+def decompress(inBytes, startOffset=0):
     # Define some useful constants.
     SEARCH_LOG2 = 8
-    SEARCH_SIZE = 1 << SEARCH_LOG2
+    SEARCH_SIZE = 2 ** SEARCH_LOG2
     LOOKAHEAD_LOG2 = 4
-    LOOKAHEAD_SIZE = 1 << LOOKAHEAD_LOG2
+    LOOKAHEAD_SIZE = 2 ** LOOKAHEAD_LOG2
     BIT_PASTCOPY = 0
     BIT_LITERAL = 1
 
-    # Open the ROM.
-    romStream = bitstring.ConstBitStream(filename=romFile)
-    romStream.bytepos += startOffset
+    # Prepare to read the compressed bytes.
+    inStream = bitstring.ConstBitStream(bytes=inBytes)
+    inStream.bytepos = startOffset
 
     # Allocate memory for the decompression process.
-    decompSize = romStream.read('uintle:16')
+    decompSize = inStream.read('uintle:16')
     decomp = bytearray([0x00] * decompSize)
     decompPos = 0
     window = bytearray([0x20] * SEARCH_SIZE)
@@ -93,12 +95,12 @@ def decompress(romFile, startOffset):
 
     # Main decompression loop.
     while decompPos < decompSize:
-        nextCommand = romStream.read('bool')
+        nextCommand = inStream.read('bool')
 
         if nextCommand == BIT_PASTCOPY:
             # 0: Pastcopy case.
-            copySource = romStream.read(SEARCH_LOG2).uint
-            copyLength = romStream.read(LOOKAHEAD_LOG2).uint
+            copySource = inStream.read(SEARCH_LOG2).uint
+            copyLength = inStream.read(LOOKAHEAD_LOG2).uint
             copyLength += 2
 
             # Truncate copies that would exceed "decompSize" bytes.
@@ -110,22 +112,22 @@ def decompress(romFile, startOffset):
                 decompPos += 1
                 window[windowPos] = window[copySource]
                 windowPos += 1
-                windowPos &= (SEARCH_SIZE - 1)
+                windowPos %= SEARCH_SIZE
                 copySource += 1
-                copySource &= (SEARCH_SIZE - 1)
+                copySource %= SEARCH_SIZE
 
         elif nextCommand == BIT_LITERAL:
             # 1: Literal case.
-            literalByte = romStream.read('uint:8')
+            literalByte = inStream.read('uint:8')
             decomp[decompPos] = literalByte
             decompPos += 1
             window[windowPos] = literalByte
             windowPos += 1
-            windowPos &= (SEARCH_SIZE - 1)
+            windowPos %= SEARCH_SIZE
 
     # Calculate the end offset.
-    romStream.bytealign()
-    endOffset = romStream.bytepos
+    inStream.bytealign()
+    endOffset = inStream.bytepos
 
     # Return the decompressed data and end offset.
     return (decomp, endOffset)
@@ -139,20 +141,23 @@ if __name__ == "__main__":
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 3 or argc > 4:
-        sys.stdout.write("Usage: ")
-        sys.stdout.write("{0:s} ".format(sys.argv[0]))
-        sys.stdout.write("<romFile> <startOffset> [outFile]\n")
+        print("Usage: {0:s} <inFile> <startOffset> [outFile]".format(sys.argv[0]))
         sys.exit(1)
 
     # Copy the arguments.
-    romFile = sys.argv[1]
+    inFile = sys.argv[1]
     startOffset = int(sys.argv[2], 16)
     outFile = None
     if argc == 4:
         outFile = sys.argv[3]
 
+    # Open, read and close the input file.
+    inStream = open(inFile, "rb")
+    inBytes = inStream.read()
+    inStream.close()
+
     # Decompress the data.
-    outBytes, endOffset = decompress(romFile, startOffset)
+    outBytes, endOffset = decompress(inBytes, startOffset)
 
     # Write the decompressed output, if appropriate.
     if outFile is not None:
@@ -161,8 +166,8 @@ if __name__ == "__main__":
         outStream.close()
 
     # Report the size of the compressed data and last offset.
-    sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(endOffset - startOffset))
-    sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(endOffset - 1))
+    print("Original compressed size: 0x{0:X} ({0:d}) bytes".format(endOffset - startOffset))
+    print("Last offset read, inclusive: {0:X}\n".format(endOffset - 1))
 
     # Exit.
     sys.exit(0)
