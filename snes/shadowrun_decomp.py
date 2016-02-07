@@ -31,20 +31,14 @@
 #   - The control section is a stream of bits used by the "literal" 
 #     and "pastcopy" commands. The bits are read from one byte at a 
 #     time, most significant to least (0x80, 0x40, 0x20 ... 0x01). 
-#     The first command is always literal, but this isn't indicated 
-#     by anything in the control section.
+#     The first command is always literal.
 # 
-#   - The literal command copies a specified number of bytes from the 
-#     data section into the decompressed output.
-# 
-#     To read a literal:
-#      - Set the initial amount to 1.
-#      - Read one bit from the control section.
-#      - If this bit is 0, the literal continues. Shift the amount 
-#        left once, add the next bit in the control section to the 
-#        amount, and return to the previous step.
-#      - If this bit is 1, the literal is done. Copy the specified 
-#        amount of bytes from the data section into the output.
+#   - The literal command copies bytes from the data section to the 
+#     decompressed output. The amount of bytes to copy is encoded 
+#     using interleaved exponential-Golomb coding. ...Don't run away! 
+#     It's basically alternating "stop" and "data" bits. Imagine an 
+#     unwritten leading "1" and append the data bits to it until you 
+#     read a stop of 1.
 # 
 #   - Some sample literals:
 # 
@@ -58,16 +52,19 @@
 #              00 00 00 1 --> Copy  8 bytes (binary   1000)
 #        01 00 01 00 00 1 --> Copy 52 bytes (binary 110100)
 # 
+#   - python-bitstring supports this coding, but starts counting from 
+#     0 instead of 1, so we add 1 to each value we read.
+# 
 #   - If there is still data left to decompress after a literal, a 
 #     pastcopy follows.
 # 
 #   - The pastcopy command consists of three parts.
-#      - The first is the source: an uninterrupted sequence of bits 
-#        of length N, where N = log2(number of bytes decompressed), 
-#        indicating where to copy from.
-#      - The second is the amount, which is encoded using the same 
-#        scheme as the amount in the literal case. Add 2 to this 
-#        amount once you have it.
+#      - The first is the source: a sequence of bits of length N, 
+#        where N = log2(number of bytes decompressed), indicating an 
+#        absolute location to copy from.
+#      - The second is the amount. Like the literal command, it uses 
+#        interleaved exponential-Golomb coding. Add 2 to this amount 
+#        once you have it. (3 here, because of python-bitstring.)
 #      - The third is a single bit, indicating what the next command 
 #        is: 0 for a literal, and 1 for another pastcopy.
 # 
@@ -112,13 +109,7 @@ def decompress(inBytes, startOffset=0):
         if nextCommand == BIT_LITERAL:
 
             # Read the number of bytes to copy.
-            copyAmount = 1
-            stopBit = inStream.read('bool')
-            while stopBit == False:
-                copyAmount <<= 1
-                dataBit = int(inStream.read('bool'))
-                copyAmount += dataBit
-                stopBit = inStream.read('bool')
+            copyAmount = inStream.read('uie') + 1
 
             # Truncate the copy if it would exceed decompSize.
             if (decompPos + copyAmount) >= decompSize:
@@ -137,18 +128,11 @@ def decompress(inBytes, startOffset=0):
         # 1: Pastcopy case.
 
         # Read the source.
-        copySourceLength = len(bin(decompPos).lstrip('0b'))
+        copySourceLength = decompPos.bit_length()
         copySource = inStream.read('uint:{0:d}'.format(copySourceLength))
 
         # Read the amount.
-        copyAmount = 1
-        stopBit = inStream.read('bool')
-        while stopBit == False:
-            copyAmount <<= 1
-            dataBit = int(inStream.read('bool'))
-            copyAmount += dataBit
-            stopBit = inStream.read('bool')
-        copyAmount += 2
+        copyAmount = inStream.read('uie') + 3
 
         # Truncate the copy if it would exceed decompSize.
         if (decompPos + copyAmount) >= decompSize:
