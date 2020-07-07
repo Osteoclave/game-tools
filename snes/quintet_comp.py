@@ -1,30 +1,17 @@
+#!/usr/bin/env python3
+#
 # Quintet Compressor
-# Written by Alchemic
-# 2012 Feb 04
-# 
-# 
-# 
-# This compression format is used by five of Quintet's games:
-#   - ActRaiser
-#   - ActRaiser 2
-#   - Illusion of Gaia
-#   - Robotrek
-#   - Soul Blazer
-# 
-# The format is described in greater detail in the decompressor.
-# 
-# 
-# 
+# Osteoclave
+# 2012-02-04
+#
+# The compression format is described in the decompressor.
+#
 # This code uses python-bitstring:
-# https://pypi.python.org/pypi/bitstring
+# https://pypi.org/project/bitstring/
 
-from __future__ import print_function
-from __future__ import division
-
+import os
 import sys
 import bitstring
-
-
 
 
 
@@ -44,7 +31,7 @@ def compress(inBytes):
 
     # Prepare for compression.
     output = bitstring.BitArray()
-    output += bitstring.pack('uintle:16', len(inBytes))
+    output += bitstring.pack("uintle:16", len(inBytes))
     currentIndex = SEARCH_SIZE
 
     # Main compression loop.
@@ -57,8 +44,8 @@ def compress(inBytes):
             # Don't compare past the end of the lookahead buffer.
             # Don't compare past the end of the memory buffer.
             compareLimit = min(
-              LOOKAHEAD_SIZE - 1,
-              len(inBuffer) - currentIndex
+                LOOKAHEAD_SIZE - 1,
+                len(inBuffer) - currentIndex
             )
 
             # Compare the search buffer to the lookahead buffer.
@@ -77,22 +64,32 @@ def compress(inBytes):
 
         # Write the next block of compressed output.
         if bestLength >= 2:
-            # For some reason, the decompressor expects the pastcopy 
+            # For some reason, the decompressor expects the pastcopy
             # source values to be offset by 0xEF. I have no idea why.
             bestIndex = (bestIndex + 0xEF) & 0xFF
-            output += bitstring.pack('bool', BIT_PASTCOPY)
-            output += bitstring.pack('uint:n=v', n = SEARCH_LOG2, v = bestIndex)
-            output += bitstring.pack('uint:n=v', n = LOOKAHEAD_LOG2, v = bestLength - 2)
+            output += bitstring.pack("uint:1", BIT_PASTCOPY)
+            output += bitstring.pack(
+                "uint:n=v", n = SEARCH_LOG2, v = bestIndex
+            )
+            output += bitstring.pack(
+                "uint:n=v", n = LOOKAHEAD_LOG2, v = bestLength - 2
+            )
             currentIndex += bestLength
         else:
-            output += bitstring.pack('bool', BIT_LITERAL)
-            output += bitstring.pack('uint:8', inBuffer[currentIndex])
+            output += bitstring.pack("uint:1", BIT_LITERAL)
+            output += bitstring.pack("uint:8", inBuffer[currentIndex])
             currentIndex += 1
 
     # Return the compressed data.
     return output.tobytes()
 
 
+
+# Open a file for reading and writing. If the file doesn't exist, create it.
+# (Vanilla open() with mode "r+" raises an error if the file doesn't exist.)
+def touchopen(filename, *args, **kwargs):
+    fd = os.open(filename, os.O_RDWR | os.O_CREAT)
+    return os.fdopen(fd, *args, **kwargs)
 
 
 
@@ -101,7 +98,9 @@ if __name__ == "__main__":
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 2 or argc > 4:
-        print("Usage: {0:s} <inFile> [outFile] [outOffset]".format(sys.argv[0]))
+        print("Usage: {0:s} <inFile> [outFile] [outOffset]".format(
+            sys.argv[0]
+        ))
         sys.exit(1)
 
     # Copy the arguments.
@@ -113,22 +112,22 @@ if __name__ == "__main__":
     if argc == 4:
         outOffset = int(sys.argv[3], 16)
 
-    # Open, read and close the input file.
-    inStream = open(inFile, "rb")
-    inBytes = inStream.read()
-    inStream.close()
+    # Read the input file.
+    with open(inFile, "rb") as inStream:
+        inBytes = bytearray(inStream.read())
 
     # Compress the data.
     outBytes = compress(inBytes)
 
     # Write the compressed output, if appropriate.
     if outFile is not None:
-        # Mode r+b gives an error if the file doesn't already exist.
-        open(outFile, "a").close()
-        outStream = open(outFile, "r+b")
-        outStream.seek(outOffset)
-        outStream.write(outBytes)
-        outStream.close()
+        with touchopen(outFile, "r+b") as outStream:
+            outStream.seek(outOffset)
+            outStream.write(outBytes)
+            lastOffset = outStream.tell()
+            print("Last offset written, inclusive: {0:X}".format(
+                lastOffset - 1
+            ))
 
     # Report statistics on the data.
     print("Uncompressed size: 0x{0:X} ({0:d}) bytes".format(len(inBytes)))

@@ -1,20 +1,16 @@
+#!/usr/bin/env python3
+#
 # Quintet Arrangement Viewer
-# Written by Alchemic
-# 2011 Nov 15
-# 
-# 
-# 
-# This code uses the Python Imaging Library (PIL):
-# http://www.pythonware.com/products/pil/
-
-from __future__ import print_function
+# Osteoclave
+# 2011-11-15
+#
+# This code uses the Pillow fork of the Python Imaging Library (PIL):
+# https://pypi.org/project/Pillow/
 
 import sys
 import quintet_decomp
 
 from PIL import Image
-
-
 
 
 
@@ -31,14 +27,13 @@ outFile = "{0:s}_{1:06X}.png".format(inFile, startOffset)
 if argc == 4:
     outFile = sys.argv[3]
 
-# Open, read and close the input file.
-inStream = open(inFile, "rb")
-inBytes = inStream.read()
-inStream.close()
+# Read the input file.
+with open(inFile, "rb") as inStream:
+    inBytes = inStream.read()
 
 # Read the size bytes.
-xSize = 0x10 * ord(inBytes[startOffset + 0])
-ySize = 0x10 * ord(inBytes[startOffset + 1])
+xSize = 0x10 * inBytes[startOffset + 0]
+ySize = 0x10 * inBytes[startOffset + 1]
 
 # Decompress the arrangement data.
 outBytes, endOffset = quintet_decomp.decompress(inBytes, startOffset + 2)
@@ -50,8 +45,8 @@ for y in range(ySize):
     for x in range(xSize):
 
         currentIndex = 0
-        currentIndex += (0x10 * xSize * (y / 0x10))
-        currentIndex += (0x100 * (x / 0x10))
+        currentIndex += (0x10 * xSize * (y // 0x10))
+        currentIndex += (0x100 * (x // 0x10))
         currentIndex += (0x10 * (y % 0x10))
         currentIndex += (0x1 * (x % 0x10))
 
@@ -59,12 +54,12 @@ for y in range(ySize):
 
         # This produces a nice orange-and-blue scheme.
         canvas.putpixel(
-          (x, y), 
-          (
-            0xFF - abs(currentTile - 0x40), 
-            0xD0 - abs(currentTile - 0x80), 
-            0xFF - abs(currentTile - 0xC0)
-          )
+            (x, y),
+            (
+                0xFF - abs(currentTile - 0x40),
+                0xD0 - abs(currentTile - 0x80),
+                0xFF - abs(currentTile - 0xC0)
+            )
         )
 
 # Output a scaled-up version of the image, and exit.

@@ -1,22 +1,17 @@
+#!/usr/bin/env python3
+#
 # M.C. Kids Text Compressor
-# Written by Alchemic
-# 2012 Nov 16
-# 
-# 
-# 
-# The format is described in greater detail in the decompressor.
-# 
-# 
-# 
+# Osteoclave
+# 2012-11-16
+#
+# The compression format is described in the decompressor.
+#
 # This code uses python-bitstring:
-# http://code.google.com/p/python-bitstring/
+# https://pypi.org/project/bitstring/
 
-from __future__ import division
-
+import os
 import sys
 import bitstring
-
-
 
 
 
@@ -29,8 +24,8 @@ def compress(inBytes, sourceArgSize, lengthArgSize):
     currentIndex = 0
     endIndex = len(inBytes)
     output = bitstring.BitArray()
-    output += bitstring.pack('uint:4', sourceArgSize)
-    output += bitstring.pack('uint:4', lengthArgSize)
+    output += bitstring.pack("uint:4", sourceArgSize)
+    output += bitstring.pack("uint:4", lengthArgSize)
 
     # Main compression loop.
     while currentIndex < endIndex:
@@ -39,10 +34,10 @@ def compress(inBytes, sourceArgSize, lengthArgSize):
 
         # Compare what's coming up to what we've most recently seen.
         searchLimit = min(
-            currentIndex, 
+            currentIndex,
             (1 << sourceArgSize) - 1
         )
-        for i in xrange(1, searchLimit):
+        for i in range(1, searchLimit):
             # Don't look too far ahead at what's coming up:
             # - No further than can be encoded in one command.
             # - Not past the end of the input.
@@ -53,7 +48,7 @@ def compress(inBytes, sourceArgSize, lengthArgSize):
 
             # Count how many sequential bytes match (possibly zero).
             currentLength = 0
-            for j in xrange(lookaheadLimit):
+            for j in range(lookaheadLimit):
                 if inBytes[currentIndex - i + j] == inBytes[currentIndex + j]:
                     currentLength += 1
                 else:
@@ -66,24 +61,34 @@ def compress(inBytes, sourceArgSize, lengthArgSize):
 
         # Write the next command.
         if bestLength >= 3:
-            output += bitstring.pack('uint:1', BIT_PASTCOPY)
-            output += bitstring.pack('uint:n=v', n = sourceArgSize, v = bestSource)
-            output += bitstring.pack('uint:n=v', n = lengthArgSize, v = bestLength - 3)
+            output += bitstring.pack("uint:1", BIT_PASTCOPY)
+            output += bitstring.pack(
+                "uint:n=v", n = sourceArgSize, v = bestSource
+            )
+            output += bitstring.pack(
+                "uint:n=v", n = lengthArgSize, v = bestLength - 3
+            )
             currentIndex += bestLength
         else:
-            output += bitstring.pack('uint:1', BIT_LITERAL)
-            output += bitstring.pack('uint:8', inBytes[currentIndex])
+            output += bitstring.pack("uint:1", BIT_LITERAL)
+            output += bitstring.pack("uint:8", inBytes[currentIndex])
             currentIndex += 1
 
     # Write the terminating bits.
-    output += bitstring.pack('uint:1', BIT_PASTCOPY)
-    output += bitstring.pack('uint:n=v', n = sourceArgSize, v = 0)
-    output += bitstring.pack('uint:n=v', n = lengthArgSize, v = 0)
+    output += bitstring.pack("uint:1", BIT_PASTCOPY)
+    output += bitstring.pack("uint:n=v", n = sourceArgSize, v = 0)
+    output += bitstring.pack("uint:n=v", n = lengthArgSize, v = 0)
 
     # Return the compressed data.
     return output.tobytes()
 
 
+
+# Open a file for reading and writing. If the file doesn't exist, create it.
+# (Vanilla open() with mode "r+" raises an error if the file doesn't exist.)
+def touchopen(filename, *args, **kwargs):
+    fd = os.open(filename, os.O_RDWR | os.O_CREAT)
+    return os.fdopen(fd, *args, **kwargs)
 
 
 
@@ -92,9 +97,9 @@ if __name__ == "__main__":
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 2 or argc > 4:
-        sys.stdout.write("Usage: ")
-        sys.stdout.write("{0:s} ".format(sys.argv[0]))
-        sys.stdout.write("<inFile> [outFile] [outOffset]\n")
+        print("Usage: {0:s} <inFile> [outFile] [outOffset]".format(
+            sys.argv[0]
+        ))
         sys.exit(1)
 
     # Copy the arguments.
@@ -106,35 +111,41 @@ if __name__ == "__main__":
     if argc == 4:
         outOffset = int(sys.argv[3], 16)
 
-    # Open, read and close the input file.
-    inStream = open(inFile, "rb")
-    inBytes = bytearray(inStream.read())
-    inStream.close()
+    # Read the input file.
+    with open(inFile, "rb") as inStream:
+        inBytes = bytearray(inStream.read())
 
     # Compress the data.
     compressedOptions = []
-    for sourceArgSize in xrange(10, 12):
-        for lengthArgSize in xrange(3, 6):
-            sys.stdout.write("Compressing: {0:d},{1:d}".format(sourceArgSize, lengthArgSize))
+    for sourceArgSize in range(10, 12):
+        for lengthArgSize in range(3, 6):
+            print(
+                "Compressing: {0:d},{1:d}".format(
+                    sourceArgSize, lengthArgSize
+                ),
+                end=""
+            )
             thisOption = compress(inBytes, sourceArgSize, lengthArgSize)
-            sys.stdout.write(" = {0:d} bytes\n".format(len(thisOption)))
+            print(" = {0:d} bytes".format(len(thisOption)))
             compressedOptions.append(thisOption)
-    outBytes = min(compressedOptions, key = len)
-    sys.stdout.write("Done.\n\n")
+    outBytes = min(compressedOptions, key=len)
+    print("Done.")
+    print()
 
     # Write the compressed output, if appropriate.
     if outFile is not None:
-        # Mode r+b gives an error if the file doesn't already exist.
-        open(outFile, "a").close()
-        outStream = open(outFile, "r+b")
-        outStream.seek(outOffset)
-        outStream.write(outBytes)
-        outStream.close()
+        with touchopen(outFile, "r+b") as outStream:
+            outStream.seek(outOffset)
+            outStream.write(outBytes)
+            lastOffset = outStream.tell()
+            print("Last offset written, inclusive: {0:X}".format(
+                lastOffset - 1
+            ))
 
     # Report statistics on the data.
-    sys.stdout.write("Uncompressed size: 0x{0:X} ({0:d}) bytes\n".format(len(inBytes)))
-    sys.stdout.write("Compressed size: 0x{0:X} ({0:d}) bytes\n".format(len(outBytes)))
-    sys.stdout.write("Ratio: {0:f}\n".format(len(outBytes) / len(inBytes)))
+    print("Uncompressed size: 0x{0:X} ({0:d}) bytes".format(len(inBytes)))
+    print("Compressed size: 0x{0:X} ({0:d}) bytes".format(len(outBytes)))
+    print("Ratio: {0:f}".format(len(outBytes) / len(inBytes)))
 
     # Exit.
     sys.exit(0)

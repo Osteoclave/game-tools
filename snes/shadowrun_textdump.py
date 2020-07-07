@@ -1,26 +1,22 @@
+#!/usr/bin/env python3
+#
 # Shadowrun Text Dumper
-# Written by Alchemic
-# 2013 Jul 13 (rewrite of 2011 Aug 26 code)
-# 
-# 
-# 
+# Osteoclave
+# 2013-07-13 (rewrite of 2011-08-26 code)
+#
 # This code uses python-bitstring:
-# http://code.google.com/p/python-bitstring/
-
-from __future__ import print_function
+# https://pypi.org/project/bitstring/
 
 import sys
 import bitstring
 
 
 
-
-
 def buildSymbolDict(romStream, index, prefix, symbolDict = {}):
     # Examine the current node of the symbol tree.
     romStream.bytepos = 0xE8000 + index
-    leftData = romStream.read('uintle:16')
-    rightData = romStream.read('uintle:16')
+    leftData = romStream.read("uintle:16")
+    rightData = romStream.read("uintle:16")
 
     # Examine the left child.
     if leftData >= 0x8000:
@@ -91,8 +87,6 @@ def buildSymbolDict(romStream, index, prefix, symbolDict = {}):
 
 
 
-
-
 def readLine(romStream, startPos, symbolDict):
     romStream.bytepos = startPos
     lineTerminator = "[0A]"
@@ -102,7 +96,7 @@ def readLine(romStream, startPos, symbolDict):
         # Read the next symbol.
         currentKey = ""
         while currentKey not in symbolDict:
-            nextBit = romStream.read('bool')
+            nextBit = romStream.read("uint:1")
             if nextBit == False:
                 currentKey += "0"
             else:
@@ -122,16 +116,12 @@ def readLine(romStream, startPos, symbolDict):
 
 
 
-
-
 if __name__ == "__main__":
 
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc != 2:
-        sys.stdout.write("Usage: ")
-        sys.stdout.write("{0:s} ".format(sys.argv[0]))
-        sys.stdout.write("<romFile>\n")
+        print("Usage: {0:s} <romFile>".format(sys.argv[0]))
         sys.exit(1)
 
     # Process the argument.
@@ -141,17 +131,17 @@ if __name__ == "__main__":
     # Build the dictionary of symbols.
     symbolDict = buildSymbolDict(romStream, 0, "")
 
-    # romStream's reading position (bytepos) is now right after the 
+    # romStream's reading position (bytepos) is now right after the
     # end of the symbol tree, which is where the text begins.
 
     keywordDict = {}
     lineDict = {}
 
     # Read the lines of text.
-    # Shadowrun has somewhere around 1600 lines of text, but the 
-    # exact number varies among the various versions of the ROM. 
+    # Shadowrun has somewhere around 1600 lines of text, but the
+    # exact number varies among the various versions of the ROM.
     # Hence the 1608 (which grabs all the lines and then some).
-    for i in xrange(1608):
+    for i in range(1608):
         # Read the current line.
         startPos = romStream.bytepos
         currentLine = readLine(romStream, startPos, symbolDict)
@@ -173,22 +163,22 @@ if __name__ == "__main__":
     print("Shadowrun Text Dump")
     print("- Dumped from: {0:s}".format(romFile))
     print("------------------------------------------------------------------------")
-    print("")
+    print()
     lineIter = sorted(lineDict.items())
     for i, (k, v) in enumerate(lineIter):
         print("{0:4d}    {1:5X}    {2:s}".format(i, k, v))
-    print("")
+    print()
     print("------------------------------------------------------------------------")
-    print("")
+    print()
 
     # Read and dump the conversation data.
-    # There's a pointer table for this data at 0x147A, but I'm not 
+    # There's a pointer table for this data at 0x147A, but I'm not
     # using it (just reading the entries in ROM order).
 
     converseMusicDict = {
-      0x00 : "00 (no change)",
-      0x01 : "01 (Funky Conversation)",
-      0x02 : "02 (Shady Conversation)"
+        0x00 : "00 (no change)",
+        0x01 : "01 (Funky Conversation)",
+        0x02 : "02 (Shady Conversation)",
     }
 
     keywordDict[0xFF] = "Introduction"
@@ -198,50 +188,50 @@ if __name__ == "__main__":
     # There are 139 conversation data entries.
     # This is consistent among the various versions of the ROM.
     romStream.bytepos = 0x680C0
-    for i in xrange(139):
+    for i in range(139):
 
         startPos = romStream.bytepos
-        imagePointer = romStream.read('uintle:24')
-        imageFlipped = romStream.read('bool')
-        converseMusic = romStream.read('uint:7')
+        imagePointer = romStream.read("uintle:24")
+        imageFlipped = romStream.read("uint:1")
+        converseMusic = romStream.read("uint:7")
 
         print("{0:5X}".format(startPos))
-        print("")
+        print()
         print("   Image = {0:6X}".format(imagePointer), end="")
         if imageFlipped:
             print(" (flipped horizontally)", end="")
-        print("")
+        print()
         print("   Music = {0:s}".format(converseMusicDict[converseMusic]))
-        print("")
-        nextKeyword = romStream.read('uint:8')
+        print()
+        nextKeyword = romStream.read("uint:8")
 
         while nextKeyword != 0xF8:
             print("   {0:s}".format(keywordDict[nextKeyword]))
-            skipAhead = romStream.read('uint:8')
-            mysteryBit = romStream.read('bool')
-            keywordChanges = romStream.read('uint:7')
+            skipAhead = romStream.read("uint:8")
+            mysteryBit = romStream.read("uint:1")
+            keywordChanges = romStream.read("uint:7")
 
             while keywordChanges > 0:
-                whichKeyword = romStream.read('uint:8')
+                whichKeyword = romStream.read("uint:8")
                 print('   - Learn "{0:s}"'.format(keywordDict[whichKeyword]))
                 keywordChanges -= 1
 
             if mysteryBit:
-                mysteryWord = romStream.read('uintle:16')
+                mysteryWord = romStream.read("uintle:16")
                 print("   - Mystery word (0x{0:04X})".format(mysteryWord))
 
-            textPointer = romStream.read('uintle:16')
+            textPointer = romStream.read("uintle:16")
             textPointer += 0xE8000
             if lineDict[textPointer]:
                 print("   {0:5X} --> {1:s}".format(textPointer, lineDict[textPointer]))
             else:
                 print("   {0:5X} --> (?)".format(textPointer))
-            print("")
+            print()
 
-            nextKeyword = romStream.read('uint:8')
+            nextKeyword = romStream.read("uint:8")
 
         print("------------------------------------------------------------------------")
-        print("")
+        print()
 
     # Exit.
     sys.exit(0)

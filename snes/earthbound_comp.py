@@ -1,16 +1,13 @@
+#!/usr/bin/env python3
+#
 # EarthBound Compressor
-# Written by Alchemic
-# 2012 Apr 25
-# 
-# 
-# 
-# The format is described in greater detail in the decompressor.
+# Osteoclave
+# 2012-04-25
+#
+# The compression format is described in the decompressor.
 
-from __future__ import division
-
+import os
 import sys
-
-
 
 
 
@@ -35,7 +32,7 @@ def lookForConstantByte(inBuffer, currentIndex):
     nextByte = inBuffer[currentIndex]
     matchLength = 0
 
-    for i in xrange(compareLimit):
+    for i in range(compareLimit):
         if inBuffer[currentIndex + i] == nextByte:
             matchLength += 1
         else:
@@ -64,7 +61,7 @@ def lookForConstantWord(inBuffer, currentIndex):
     nextWord += (inBuffer[currentIndex+1] << 8)
     matchLength = 0
 
-    for i in xrange(0, compareLimit, 2):
+    for i in range(0, compareLimit, 2):
         currentWord = inBuffer[currentIndex + i + 0]
         currentWord += (inBuffer[currentIndex + i + 1] << 8)
         if currentWord == nextWord:
@@ -88,7 +85,7 @@ def lookForIncrementingByte(inBuffer, currentIndex):
     nextByte = inBuffer[currentIndex]
     matchLength = 0
 
-    for i in xrange(compareLimit):
+    for i in range(compareLimit):
         if inBuffer[currentIndex + i] == ((nextByte + i) & 0xFF):
             matchLength += 1
         else:
@@ -110,10 +107,10 @@ def lookForPastBytesForward(inBuffer, currentIndex):
     if compareLimit > 1024:
         compareLimit = 1024
 
-    for i in xrange(currentIndex):
+    for i in range(currentIndex):
         # Count how many sequential bytes match (possibly zero).
         currentLength = 0
-        for j in xrange(compareLimit):
+        for j in range(compareLimit):
             if inBuffer[i + j] == inBuffer[currentIndex + j]:
                 currentLength += 1
             else:
@@ -140,10 +137,10 @@ def lookForPastBytesBitReversed(inBuffer, inBufferBitReversed, currentIndex):
     if compareLimit > 1024:
         compareLimit = 1024
 
-    for i in xrange(currentIndex):
+    for i in range(currentIndex):
         # Count how many sequential bytes match (possibly zero).
         currentLength = 0
-        for j in xrange(compareLimit):
+        for j in range(compareLimit):
             if inBufferBitReversed[i + j] == inBuffer[currentIndex + j]:
                 currentLength += 1
             else:
@@ -170,7 +167,7 @@ def lookForPastBytesBackward(inBuffer, currentIndex):
     if initialCompareLimit > 1024:
         initialCompareLimit = 1024
 
-    for i in xrange(currentIndex):
+    for i in range(currentIndex):
         # Don't look too far back.
         compareLimit = initialCompareLimit
         if compareLimit > i:
@@ -178,7 +175,7 @@ def lookForPastBytesBackward(inBuffer, currentIndex):
 
         # Count how many sequential bytes match (possibly zero).
         currentLength = 0
-        for j in xrange(compareLimit):
+        for j in range(compareLimit):
             if inBuffer[i - j] == inBuffer[currentIndex + j]:
                 currentLength += 1
             else:
@@ -197,7 +194,7 @@ def lookForPastBytesBackward(inBuffer, currentIndex):
 def encodeCommand(command, count, argument):
     encodedResult = bytearray()
 
-    # Command 2 (run of a constant word) uses a count of words 
+    # Command 2 (run of a constant word) uses a count of words
     # instead of a count of bytes.
     if command == 2:
         count //= 2
@@ -227,8 +224,6 @@ def encodeCommand(command, count, argument):
 
 
 
-
-
 def compress(inBytes):
     # Prepare for compression.
     inBuffer = bytearray(inBytes)
@@ -238,7 +233,7 @@ def compress(inBytes):
 
     # Create a copy of the buffer where the bits of every byte are
     # reversed (e.g. 0x80 <---> 0x01).
-    inBufferBitReversed = bytearray(map(reverseByte, inBuffer))
+    inBufferBitReversed = bytearray([reverseByte(x) for x in inBuffer])
 
     # Main compression loop.
     while currentIndex < len(inBuffer):
@@ -324,10 +319,10 @@ def compress(inBytes):
             bestArgument = candidateArgument
             bestRatio = candidateRatio
 
-        # If none of the commands find a match large enough to be worth 
-        # using, the next byte will be encoded as a literal. Don't output 
-        # it right away. (If we did, multiple literals in a row would be 
-        # encoded as several one-byte commands instead of a single 
+        # If none of the commands find a match large enough to be worth
+        # using, the next byte will be encoded as a literal. Don't output
+        # it right away. (If we did, multiple literals in a row would be
+        # encoded as several one-byte commands instead of a single
         # multi-byte command.)
         if bestCommand == 0:
             queuedLiterals.append(inBuffer[currentIndex])
@@ -339,7 +334,7 @@ def compress(inBytes):
                 queuedLiterals = bytearray()
             continue
 
-        # If we've reached this point, we have a non-literal command 
+        # If we've reached this point, we have a non-literal command
         # to output. If we have any literals queued, output them now.
         if len(queuedLiterals) > 0:
             output += encodeCommand(0, len(queuedLiterals), queuedLiterals)
@@ -363,6 +358,12 @@ def compress(inBytes):
 
 
 
+# Open a file for reading and writing. If the file doesn't exist, create it.
+# (Vanilla open() with mode "r+" raises an error if the file doesn't exist.)
+def touchopen(filename, *args, **kwargs):
+    fd = os.open(filename, os.O_RDWR | os.O_CREAT)
+    return os.fdopen(fd, *args, **kwargs)
+
 
 
 if __name__ == "__main__":
@@ -370,9 +371,9 @@ if __name__ == "__main__":
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 2 or argc > 4:
-        sys.stdout.write("Usage: ")
-        sys.stdout.write("{0:s} ".format(sys.argv[0]))
-        sys.stdout.write("<inFile> [outFile] [outOffset]\n")
+        print("Usage: {0:s} <inFile> [outFile] [outOffset]".format(
+            sys.argv[0]
+        ))
         sys.exit(1)
 
     # Copy the arguments.
@@ -384,29 +385,27 @@ if __name__ == "__main__":
     if argc == 4:
         outOffset = int(sys.argv[3], 16)
 
-    # Open, read and close the input file.
-    inStream = open(inFile, "rb")
-    inBytes = inStream.read()
-    inStream.close()
+    # Read the input file.
+    with open(inFile, "rb") as inStream:
+        inBytes = bytearray(inStream.read())
 
     # Compress the data.
     outBytes = compress(inBytes)
 
     # Write the compressed output, if appropriate.
     if outFile is not None:
-        # Mode r+b gives an error if the file doesn't already exist.
-        open(outFile, "a").close()
-        outStream = open(outFile, "r+b")
-        outStream.seek(outOffset)
-        outStream.write(outBytes)
-        lastOffset = outStream.tell()
-        sys.stdout.write("Last offset written, inclusive: {0:X}\n".format(lastOffset - 1))
-        outStream.close()
+        with touchopen(outFile, "r+b") as outStream:
+            outStream.seek(outOffset)
+            outStream.write(outBytes)
+            lastOffset = outStream.tell()
+            print("Last offset written, inclusive: {0:X}".format(
+                lastOffset - 1
+            ))
 
     # Report statistics on the data.
-    sys.stdout.write("Uncompressed size: 0x{0:X} ({0:d}) bytes\n".format(len(inBytes)))
-    sys.stdout.write("Compressed size: 0x{0:X} ({0:d}) bytes\n".format(len(outBytes)))
-    sys.stdout.write("Ratio: {0:f}\n".format(len(outBytes) / len(inBytes)))
+    print("Uncompressed size: 0x{0:X} ({0:d}) bytes".format(len(inBytes)))
+    print("Compressed size: 0x{0:X} ({0:d}) bytes".format(len(outBytes)))
+    print("Ratio: {0:f}".format(len(outBytes) / len(inBytes)))
 
     # Exit.
     sys.exit(0)

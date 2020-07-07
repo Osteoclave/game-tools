@@ -1,23 +1,17 @@
+#!/usr/bin/env python3
+#
 # Shadowrun Compressor
-# Written by Alchemic
-# 2016 Feb 06
-# 
-# 
-# 
-# The format is described in greater detail in the decompressor.
-# 
-# 
-# 
+# Osteoclave
+# 2016-02-06
+#
+# The compression format is described in the decompressor.
+#
 # This code uses python-bitstring:
-# https://pypi.python.org/pypi/bitstring
+# https://pypi.org/project/bitstring/
 
-from __future__ import print_function
-from __future__ import division
-
+import os
 import sys
 import bitstring
-
-
 
 
 
@@ -60,15 +54,17 @@ def compress(inBytes):
         if bestLength >= 3:
             # Write any queued literals (possibly none).
             if currentLiteralsQueued > 0:
-                controlSection += bitstring.pack('bool', BIT_LITERAL)
-                controlSection += bitstring.pack('uie', currentLiteralsQueued - 1)
+                controlSection += bitstring.pack("uint:1", BIT_LITERAL)
+                controlSection += bitstring.pack("uie", currentLiteralsQueued - 1)
                 currentLiteralsQueued = 0
             else:
-                controlSection += bitstring.pack('bool', BIT_PASTCOPY)
+                controlSection += bitstring.pack("uint:1", BIT_PASTCOPY)
 
             # Write the pastcopy.
-            controlSection += bitstring.pack('uint:n=v', n = currentIndex.bit_length(), v = bestIndex)
-            controlSection += bitstring.pack('uie', bestLength - 3)
+            controlSection += bitstring.pack(
+                "uint:n=v", n = currentIndex.bit_length(), v = bestIndex
+            )
+            controlSection += bitstring.pack("uie", bestLength - 3)
             currentIndex += bestLength
 
         else:
@@ -78,14 +74,14 @@ def compress(inBytes):
 
     # Write any remaining queued literals (possibly none).
     if currentLiteralsQueued > 0:
-        controlSection += bitstring.pack('bool', BIT_LITERAL)
-        controlSection += bitstring.pack('uie', currentLiteralsQueued - 1)
+        controlSection += bitstring.pack("uint:1", BIT_LITERAL)
+        controlSection += bitstring.pack("uie", currentLiteralsQueued - 1)
         currentLiteralsQueued = 0
 
     # Assemble the output: header, data section, control section.
     output = bitstring.BitArray()
-    output += bitstring.pack('uintle:16', len(inBytes))
-    output += bitstring.pack('uintle:16', len(dataSection) + 2)
+    output += bitstring.pack("uintle:16", len(inBytes))
+    output += bitstring.pack("uintle:16", len(dataSection) + 2)
     output += dataSection
     # The first command is always literal, so we don't need to waste a bit saying so.
     output += controlSection[1:]
@@ -95,6 +91,12 @@ def compress(inBytes):
 
 
 
+# Open a file for reading and writing. If the file doesn't exist, create it.
+# (Vanilla open() with mode "r+" raises an error if the file doesn't exist.)
+def touchopen(filename, *args, **kwargs):
+    fd = os.open(filename, os.O_RDWR | os.O_CREAT)
+    return os.fdopen(fd, *args, **kwargs)
+
 
 
 if __name__ == "__main__":
@@ -102,7 +104,9 @@ if __name__ == "__main__":
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 2 or argc > 4:
-        print("Usage: {0:s} <inFile> [outFile] [outOffset]".format(sys.argv[0]))
+        print("Usage: {0:s} <inFile> [outFile] [outOffset]".format(
+            sys.argv[0]
+        ))
         sys.exit(1)
 
     # Copy the arguments.
@@ -114,22 +118,22 @@ if __name__ == "__main__":
     if argc == 4:
         outOffset = int(sys.argv[3], 16)
 
-    # Open, read and close the input file.
-    inStream = open(inFile, "rb")
-    inBytes = inStream.read()
-    inStream.close()
+    # Read the input file.
+    with open(inFile, "rb") as inStream:
+        inBytes = bytearray(inStream.read())
 
     # Compress the data.
     outBytes = compress(inBytes)
 
     # Write the compressed output, if appropriate.
     if outFile is not None:
-        # Mode r+b gives an error if the file doesn't already exist.
-        open(outFile, "a").close()
-        outStream = open(outFile, "r+b")
-        outStream.seek(outOffset)
-        outStream.write(outBytes)
-        outStream.close()
+        with touchopen(outFile, "r+b") as outStream:
+            outStream.seek(outOffset)
+            outStream.write(outBytes)
+            lastOffset = outStream.tell()
+            print("Last offset written, inclusive: {0:X}".format(
+                lastOffset - 1
+            ))
 
     # Report statistics on the data.
     print("Uncompressed size: 0x{0:X} ({0:d}) bytes".format(len(inBytes)))

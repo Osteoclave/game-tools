@@ -1,83 +1,79 @@
+#!/usr/bin/env python3
+#
 # E.V.O.: Search for Eden Decompressor
-# Written by Alchemic
-# 2011 Jul 22
-# 
-# 
-# 
+# Osteoclave
+# 2011-07-22
+#
 # A terse description of the compression format:
-# 
-#    LZSS with a 4096-byte sliding window. Depending on a header 
-#    byte, it is possible to copy 0-397 previously-seen bytes. 
-#    References to past data are relative to the current output 
-#    position. Control bits (which indicate whether the following 
-#    commands are pastcopies or literals) are grouped into eights 
-#    and packed into their own bytes. Compressed data is padded 
+#
+#    LZSS with a 4096-byte sliding window. Depending on a header
+#    byte, it is possible to copy 0-397 previously-seen bytes.
+#    References to past data are relative to the current output
+#    position. Control bits (which indicate whether the following
+#    commands are pastcopies or literals) are grouped into eights
+#    and packed into their own bytes. Compressed data is padded
 #    to fit in an even number of bytes. (Word-aligned data?)
-# 
-# 
-# 
+#
 # In greater detail:
-# 
-#   - Compressed data is prefixed with a three-byte header: an 
-#     8-bit integer related to the size of pastcopies, and a 
-#     16-bit integer indicating the length of the data once 
+#
+#   - Compressed data is prefixed with a three-byte header: an
+#     8-bit integer related to the size of pastcopies, and a
+#     16-bit integer indicating the length of the data once
 #     decompressed.
-# 
+#
 #   - Following this is the compressed data, which is comprised
-#     of blocks. Each block contains one control byte and eight 
+#     of blocks. Each block contains one control byte and eight
 #     commands. The last block may have fewer than eight.
-# 
-#   - If the last block DOES have eight commands, a null control 
-#     byte (0x00) will follow. I think it's just a leftover of 
+#
+#   - If the last block DOES have eight commands, a null control
+#     byte (0x00) will follow. I think it's just a leftover of
 #     how the programmers' compressor worked ("Write a control
 #     byte after writing eight commands, update its bits as you
 #     write the next eight"). Since there's no more data, it
 #     serves no purpose except to waste 1-2 bytes of storage.
-# 
+#
 #   - The control byte indicates which of the next eight commands
 #     is pastcopy (zero) or literal (one). The control byte is
-#     read one bit at a time, least significant to most (0x01, 
+#     read one bit at a time, least significant to most (0x01,
 #     0x02, 0x04 ... 0x80).
-# 
+#
 #   - The commands:
-# 
+#
 #        Pastcopy (0) = [SSSSSSSS LLLLSSSS]          <-- Normal
 #        Pastcopy (0) = [SSSSSSSS LLLLSSSS PPPPPPPP] <-- Extended
 #        Literal  (1) = [NNNNNNNN]
-# 
+#
 #   - Let's start with pastcopies.
 #     Look at the first two argument bytes as a 16-bit word.
-# 
+#
 #   - PASTCOPY SOURCE
 #     The low twelve bits of this word (0x.SSS) are the source.
 #     To get the actual source address, add one to the source
 #     value, and subtract this number from the current writing
-#     location. So a source of 0 gets the previous byte, 1 gets 
+#     location. So a source of 0 gets the previous byte, 1 gets
 #     the byte before that, and so on.
-# 
+#
 #   - PASTCOPY LENGTH
 #     The high four bits of this word (0xL...) are the length.
-#     If the length is 0xF and the 0x80 bit of the first byte of 
-#     the header is set, it's an extended pastcopy. Read another 
+#     If the length is 0xF and the 0x80 bit of the first byte of
+#     the header is set, it's an extended pastcopy. Read another
 #     byte and add its value to the length.
 #     Finally, regardless of normal or extended type, add
 #       (First header byte & 0x7F)
 #     to the length.
-# 
+#
 #   - The maximum length of a pastcopy:
 #         F = Maximum possible original L value
 #      + FF = Maximum possible extended pastcopy value
 #      + 7F = Maximum result of (First header byte & 0x7F)
 #     -----
 #     0x18D = 397 bytes
-# 
-#   - Literal is exactly what it says on the tin. The N argument 
+#
+#   - Literal is exactly what it says on the tin. The N argument
 #     is one uncompressed byte.
 
-import sys
 import struct
-
-
+import sys
 
 
 
@@ -147,16 +143,14 @@ def decompress(romFile, startOffset):
 
 
 
-
-
 if __name__ == "__main__":
 
     # Check for incorrect usage.
     argc = len(sys.argv)
     if argc < 3 or argc > 4:
-        sys.stdout.write("Usage: ")
-        sys.stdout.write("{0:s} ".format(sys.argv[0]))
-        sys.stdout.write("<romFile> <startOffset> [outFile]\n")
+        print("Usage: {0:s} <romFile> <startOffset> [outFile]".format(
+            sys.argv[0]
+        ))
         sys.exit(1)
 
     # Copy the arguments.
@@ -168,16 +162,18 @@ if __name__ == "__main__":
 
     # Decompress the data.
     outBytes, endOffset = decompress(romFile, startOffset)
+    outSize = endOffset - startOffset
 
     # Write the decompressed output, if appropriate.
     if outFile is not None:
-        outStream = open(outFile, "wb")
-        outStream.write(outBytes)
-        outStream.close()
+        with open(outFile, "wb") as outStream:
+            outStream.write(outBytes)
 
-    # Report the size of the compressed data and last offset.
-    sys.stdout.write("Original compressed size: 0x{0:X} ({0:d}) bytes\n".format(endOffset - startOffset))
-    sys.stdout.write("Last offset read, inclusive: {0:X}\n".format(endOffset - 1))
+    # Report statistics on the data.
+    print("Last offset read, inclusive: {0:X}".format(endOffset - 1))
+    print("Compressed size: 0x{0:X} ({0:d}) bytes".format(outSize))
+    print("Uncompressed size: 0x{0:X} ({0:d}) bytes".format(len(outBytes)))
+    print("Ratio: {0:f}".format(outSize / len(outBytes)))
 
     # Exit.
     sys.exit(0)
