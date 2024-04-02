@@ -9,21 +9,22 @@
 # This code uses python-bitstring:
 # https://pypi.org/project/bitstring/
 
-import os
-import sys
 import bitstring
 
 
 
-def compress(inBytes):
-    # Define some useful constants.
-    SEARCH_LOG2 = 8
-    SEARCH_SIZE = 2 ** SEARCH_LOG2
-    LOOKAHEAD_LOG2 = 4
-    LOOKAHEAD_SIZE = 2 ** LOOKAHEAD_LOG2
-    BIT_PASTCOPY = 0
-    BIT_LITERAL = 1
+# Define some useful constants.
+SEARCH_LOG2 = 8
+SEARCH_SIZE = 2 ** SEARCH_LOG2
+LOOKAHEAD_LOG2 = 4
+PASTCOPY_MIN_LENGTH = 2
+PASTCOPY_MAX_LENGTH = PASTCOPY_MIN_LENGTH + (2 ** LOOKAHEAD_LOG2) - 1
+BIT_PASTCOPY = 0
+BIT_LITERAL = 1
 
+
+
+def compress(inBytes):
     # Prepare the memory buffer.
     inBuffer = bytearray(SEARCH_SIZE + len(inBytes))
     inBuffer[:SEARCH_SIZE] = [0x20] * SEARCH_SIZE
@@ -39,15 +40,15 @@ def compress(inBytes):
         bestIndex = 0
         bestLength = 0
 
+        # Don't compare past the end of the memory buffer.
+        # Don't compare past the end of the lookahead buffer.
+        compareLimit = min(
+            len(inBuffer) - currentIndex,
+            PASTCOPY_MAX_LENGTH,
+        )
+
         # Look for a match in the search buffer. (Brute force)
         for i in range(SEARCH_SIZE):
-            # Don't compare past the end of the lookahead buffer.
-            # Don't compare past the end of the memory buffer.
-            compareLimit = min(
-                LOOKAHEAD_SIZE - 1,
-                len(inBuffer) - currentIndex
-            )
-
             # Compare the search buffer to the lookahead buffer.
             # Count how many sequential bytes match (possibly zero).
             currentLength = 0
@@ -62,8 +63,12 @@ def compress(inBytes):
                 bestIndex = currentIndex - SEARCH_SIZE + i
                 bestLength = currentLength
 
+                # If we've found a maximum-possible-length match, break.
+                if bestLength == compareLimit:
+                    break
+
         # Write the next block of compressed output.
-        if bestLength >= 2:
+        if bestLength >= PASTCOPY_MIN_LENGTH:
             # For some reason, the decompressor expects the pastcopy
             # source values to be offset by 0xEF. I have no idea why.
             bestIndex = (bestIndex + 0xEF) & 0xFF
@@ -72,7 +77,7 @@ def compress(inBytes):
                 "uint:n=v", n = SEARCH_LOG2, v = bestIndex
             )
             output += bitstring.pack(
-                "uint:n=v", n = LOOKAHEAD_LOG2, v = bestLength - 2
+                "uint:n=v", n = LOOKAHEAD_LOG2, v = bestLength - PASTCOPY_MIN_LENGTH
             )
             currentIndex += bestLength
         else:
@@ -85,15 +90,15 @@ def compress(inBytes):
 
 
 
-# Open a file for reading and writing. If the file doesn't exist, create it.
-# (Vanilla open() with mode "r+" raises an error if the file doesn't exist.)
-def touchopen(filename, *args, **kwargs):
-    fd = os.open(filename, os.O_RDWR | os.O_CREAT)
-    return os.fdopen(fd, *args, **kwargs)
-
-
-
 if __name__ == "__main__":
+    import os
+    import sys
+
+    # Helper function for writing to the output file. Opens a file for
+    # reading and writing, and if the file doesn't exist, creates it.
+    def touchopen(filename, *args, **kwargs):
+        fd = os.open(filename, os.O_RDWR | os.O_CREAT)
+        return os.fdopen(fd, *args, **kwargs)
 
     # Check for incorrect usage.
     argc = len(sys.argv)
