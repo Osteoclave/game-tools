@@ -1,0 +1,461 @@
+# Wheel of Fortune Puzzle Injector
+# Sample puzzle file
+# Enemies and items from EarthBound (SNES, 1995)
+#
+# ------------------------------------------------------------------------
+# Puzzle file format
+# ------------------------------------------------------------------------
+# - Comments are prefixed with "#"
+# - Empty lines are silently ignored
+# - Puzzle lines have the following format:
+#    - category:answer/lines
+#
+# - Category
+#    - Leading and trailing spaces will be trimmed
+#    - The category must be 1-8 characters from the following set:
+#       - space, dollar sign, apostrophe, dash, question mark,
+#         numbers 0-9, letters A-Z, letters a-z
+#    - Lowercase letters will be displayed as uppercase in-game
+#
+# - Answer lines
+#    - One to four answer lines, separated by slashes
+#    - Leading and trailing spaces will be trimmed from each answer line
+#    - Answer lines can only contain characters from the following set:
+#       - space, apostrophe, dash, letters A-Z, letters a-z
+#    - Lowercase letters will be displayed as uppercase in-game
+#    - The complete answer must contain at least one consonant
+#       - "Y" is always treated as a consonant in Wheel of Fortune
+#    - Answer lines cannot exceed the available space on the game board
+#       - 1 answer line  =      13           character limit
+#       - 2 answer lines =      13 / 13      character limit
+#       - 3 answer lines = 11 / 13 / 13      character limit
+#       - 4 answer lines = 11 / 13 / 13 / 11 character limit
+#
+# - Advanced formatting for answer lines
+#    - Normally, answer lines are centered on the game board, using an
+#      extra square on the left if equal centering isn't possible
+#    - You could adjust the alignment with leading or trailing spaces,
+#      except that those get trimmed from each answer line
+#    - To preserve leading and trailing spaces, you can either:
+#       - Replace the spaces with underscores
+#       - Double-quote the answer line in question
+#
+# - Puzzle lines that don't meet the constraints above will be skipped
+#   over, and their line numbers reported on the Lua output console
+# - A properly-formatted puzzle file will report: "0 puzzles skipped"
+# ------------------------------------------------------------------------
+
+# Enemies
+enemy:Abstract/Art
+enemy:Annoying Old/Party Man
+enemy:Annoying/Reveler
+enemy:Arachnid                      # "Arachnid!" or "Arachnid!!!" in-game (one puzzle for both enemies)
+enemy:Armored/Frog
+enemy:Atomic/Power/Robot
+enemy:Attack Slug
+enemy:Bad Buffalo
+enemy:Beautiful/UFO
+enemy:Big Pile/of Puke
+enemy:Bionic/Kraken
+enemy:Black/Antoid
+enemy:Boogey Tent
+enemy:Captain/Strong
+enemy:Carbon Dog
+enemy:Care Free/Bomb
+enemy:Cave Boy
+enemy:Chomposaur
+enemy:Clumsy/Robot
+enemy:Coil Snake
+enemy:Conducting/Menace
+enemy:Conducting/Spirit
+enemy:Cop
+enemy:Cranky Lady
+enemy:Crazed Sign
+enemy:Crested/Booka
+enemy:Criminal/Caterpillar
+enemy:Crooked Cop
+enemy:Cute Li'l/UFO
+enemy:Dali's/Clock
+enemy:Deadly/Mouse
+enemy:Demonic/Petunia
+enemy:Dept Store/Spook              # "Dept. Store Spook" in-game, could become "Department/Store Spook"
+enemy:Desert Wolf
+enemy:Diamond Dog
+enemy:Dread/Skelpion
+enemy:Ego Orb
+enemy:Elder Batty
+enemy:Electro/Specter
+enemy:Electro/Swoosh
+enemy:Enraged/Fire Plug
+enemy:Even/Slimier/Little Pile
+enemy:Everdred
+enemy:Evil/Elemental
+enemy:Evil Eye
+enemy:Evil/Mani-Mani
+enemy:Extra/Cranky/Lady
+enemy:Farm Zombie
+enemy:Fierce/Shattered/Man
+enemy:Filthy/Attack/Roach
+enemy:Final/Starman
+enemy:Fobby
+enemy:Foppy
+enemy:Frank
+enemy:Frankystein/Mark II           # "Frankystein Mark II" in-game, could become "Frankystein/Mark Two"
+enemy:French Kiss/of Death
+enemy:Ghost of/Starman
+enemy:Gigantic/Ant
+enemy:Giygas
+enemy:Great/Crested/Booka
+enemy:Gruff Goat
+enemy:Guardian/Digger
+enemy:Guardian/General
+enemy:Guardian/Hieroglyph
+enemy:Handsome/Tom
+enemy:Hard/Crocodile
+enemy:Heavily/Armed/Pokey
+enemy:High-class/UFO
+enemy:Hostile/Elder/Oak
+enemy:Hyper/Spinning/Robo
+enemy:Insane/Cultist
+enemy:Kiss of/Death
+enemy:Kraken
+enemy:Lesser Mook
+enemy:Lethal Asp/Hieroglyph
+enemy:Li'l UFO
+enemy:Loaded Dice
+enemy:Mad Duck
+enemy:Mad Taxi
+enemy:Major/Psychic/Psycho
+enemy:Manly Fish
+enemy:Manly/Fish's/Brother
+enemy:Marauder/Octobot
+enemy:Master Barf
+enemy:Master/Belch
+enemy:Master/Criminal/Worm
+enemy:Mechanical/Octobot
+enemy:Mighty Bear
+enemy:Mighty Bear/Seven
+enemy:Military/Octobot
+enemy:Mini Barf
+enemy:Mobile/Sprout
+enemy:Mole/Playing/Rough
+enemy:Mondo Mole
+enemy:Mook Senior
+enemy:Mostly/Bad Fly
+enemy:Mr Batty                      # "Mr. Batty"      in-game, could become "Mister/Batty"
+enemy:Mr/Carpainter                 # "Mr. Carpainter" in-game, could become "Mister/Carpainter" or just "Carpainter"
+enemy:Mr Molecule                   # "Mr. Molecule"   in-game, could become "Mister/Molecule"
+enemy:Musica
+enemy:Mystical/Record
+enemy:Ness's/Nightmare
+enemy:New Age/Retro/Hippie
+enemy:No Good Fly
+enemy:Noose Man
+enemy:Nuclear/Reactor/Robot
+enemy:Over/Zealous/Cop
+enemy:Petrified/Royal Guard
+enemy:Pit Bull/Slug
+enemy:Plague Rat/of Doom
+enemy:Plain/Crocodile
+enemy:Pogo Punk
+enemy:Psychic/Psycho
+enemy:Putrid/Moldyman
+enemy:Ramblin'/Evil/Mushroom
+enemy:Ranboob
+enemy:Red Antoid
+enemy:Robo-pump
+enemy:Rowdy Mouse
+enemy:Runaway Dog
+enemy:Scalding/Coffee Cup
+enemy:Sentry/Robot
+enemy:Shattered/Man
+enemy:Shrooom                       # "Shrooom!" in-game
+enemy:Skate Punk
+enemy:Skelpion
+enemy:Slimy/Little/Pile
+enemy:Smelly/Ghost
+enemy:Smilin' Sam
+enemy:Smilin'/Sphere
+enemy:Soul/Consuming/Flame
+enemy:Spinning/Robo
+enemy:Spiteful/Crow
+enemy:Squatter/Demon
+enemy:Starman
+enemy:Starman/Deluxe
+enemy:Starman/Junior
+enemy:Starman/Super
+enemy:Stinky/Ghost
+enemy:Strong/Crocodile
+enemy:Struttin'/Evil/Mushroom
+enemy:Tangoo
+enemy:Territorial/Oak
+enemy:Thirsty/Coil Snake
+enemy:Thunder/and Storm
+enemy:Thunder/Mite
+enemy:Tiny Li'l/Ghost               # Kind of an edge case, enemy-wise, but I guess we can include it
+enemy:Titanic Ant
+enemy:Tough Guy
+enemy:Tough/Mobile/Sprout
+enemy:Trick or/Trick Kid
+enemy:Trillionage/Sprout
+enemy:Ultimate/Octobot
+enemy:Unassuming/Local Guy
+enemy:Uncontrol-/lable Sphere       # "Uncontrollable Sphere" in-game
+enemy:Urban/Zombie
+enemy:Violent/Roach
+enemy:Wetnosaur
+enemy:Whirling/Robo
+enemy:Wild/'n Wooly/Shambler
+enemy:Wooly/Shambler
+enemy:Worthless/Protoplasm
+enemy:Yes Man/Junior
+enemy:Zap Eel
+enemy:Zombie Dog
+enemy:Zombie/Possessor
+
+# Items
+item:ATM card
+item:Backstage/pass
+item:Bad key/machine
+item:Baddest/beam
+item:Bag of/Dragonite
+item:Bag of/fries
+item:Banana
+item:Baseball/cap
+item:Bazooka
+item:Bean/croquette
+item:Beef jerky
+item:Bicycle
+item:Big/bottle/rocket
+item:Big league/bat
+item:Bionic/slingshot
+item:Boiled egg
+item:Bomb
+item:Bottle of/DXwater
+item:Bottle/of water
+item:Bottle/rocket
+item:Bowl of/rice gruel
+item:Bracer/of kings
+item:Brain food/lunch
+item:Brain stone
+item:Bread roll
+item:Broken/air gun
+item:Broken/antenna
+item:Broken/bazooka
+item:Broken/cannon
+item:Broken/gadget
+item:Broken/harmonica
+item:Broken iron
+item:Broken/laser
+item:Broken/machine
+item:Broken pipe
+item:Broken/spray can
+item:Broken/trumpet
+item:Broken tube
+item:Calorie/stick
+item:Can of/fruit juice
+item:Carrot key
+item:Carton/of cream
+item:Casey bat
+item:Charm coin
+item:Cheap/bracelet
+item:Chef's/fry pan
+item:Chef's/special
+item:Cherub's/band
+item:Chick
+item:Chicken
+item:Cloak of/kings
+item:Coin of/defense
+item:Coin of/silence
+item:Coin of/slumber
+item:Cold remedy
+item:Combat/yo-yo
+item:Contact/lens
+item:Cookie
+item:Copper/bracelet
+item:Counter-PSI/unit
+item:Cracked bat
+item:Croissant
+item:Crusher/beam
+item:Crystal/charm
+item:Cup of/coffee
+item:Cup of/Lifenoodles
+item:Cup of/noodles
+item:Death ray
+item:Defense/ribbon
+item:Defense/shower
+item:Defense/spray
+item:Deluxe/fry pan
+item:Diadem/of kings
+item:Diamond
+item:Diamond/band
+item:Double beam
+item:Double/burger
+item:Earth/pendant
+item:Eraser/eraser
+item:Exit mouse
+item:Flame/pendant
+item:For Sale/sign
+item:Franklin/badge
+item:French/fry pan
+item:Fresh Egg
+item:Fry pan
+item:Gaia beam
+item:Gelato/de resort
+item:Goddess/band
+item:Goddess/ribbon
+item:Gold/bracelet
+item:Great charm
+item:Guts/capsule
+item:Gutsy bat
+item:Hall of/fame bat
+item:Hamburger
+item:Hand-Aid
+item:Handbag/strap
+item:Hard hat
+item:Hawk eye
+item:Heavy/bazooka
+item:Hieroglyph/copy
+item:Holmes hat
+item:Holy/fry pan
+item:Horn/of life
+item:HP-sucker
+item:Hungry/HP-sucker
+item:Hyper beam
+item:Insecticide/spray
+item:Insignificant/item
+item:IQ capsule
+item:Jar of/delisauce
+item:Jar of/Fly Honey
+item:Jar of/hot sauce
+item:Kabob
+item:Ketchup/packet
+item:Key to/the cabin
+item:Key to/the locker
+item:Key to/the shack
+item:Key to/the tower
+item:King banana
+item:Kraken soup
+item:Large pizza
+item:Laser gun
+item:Legendary/bat
+item:Letter/from kids
+item:Letter/from mom
+item:Letter/from Tony
+item:Luck/capsule
+item:Lucky coin
+item:Lucky/sandwich
+item:Luxury/jerky
+item:Magic/fry pan
+item:Magic/pudding
+item:Magic tart
+item:Magic/truffle
+item:Magicant/bat
+item:Magnum/air gun
+item:Mammoth/burger
+item:Meteorite/piece
+item:Meteornium
+item:Meteotite
+item:Minor/league/bat
+item:Molokheiya/soup
+item:Monkey's/love
+item:Moon beam/gun
+item:Mr Baseball/bat                # "Mr. Baseball bat" in-game, could become "Mister/Baseball/bat"
+item:Mr Baseball/cap                # "Mr. Baseball cap" in-game, could become "Mister/Baseball/cap"
+item:Mr Saturn/coin                 # "Mr. Saturn coin"  in-game, could become "Mister/Saturn/coin"
+item:Multi/bottle/rocket
+item:Mummy wrap
+item:Neutralizer
+item:Night/pendant
+item:Non-stick/frypan
+item:Pair of/dirty socks
+item:Pak of/bubble gum
+item:Pasta di/Summers
+item:Peanut/cheese bar
+item:Pencil/eraser
+item:Pharaoh's/curse
+item:Picnic/lunch
+item:Picture/postcard
+item:Piggy jelly
+item:Piggy nose
+item:Pixie's/bracelet
+item:Pizza
+item:Plain roll
+item:Plain/yogurt
+item:Platinum/band
+item:Pop gun
+item:Popsicle
+item:Protein/drink
+item:Protractor
+item:PSI caramel
+item:Rabbit's/foot
+item:Rain/pendant
+item:Receiver/phone
+item:Red ribbon
+item:Refreshing/herb
+item:Ribbon
+item:Rock candy
+item:Royal/iced tea
+item:Ruler
+item:Rust/promoter
+item:Rust/promoter DX
+item:Salt packet
+item:Sand lot/bat
+item:Saturn/ribbon
+item:Sea pendant
+item:Secret herb
+item:Shield/killer
+item:Shiny coin
+item:Show ticket
+item:Shyness/book
+item:Signed/banana
+item:Silver/bracelet
+item:Skip/sandwich
+item:Skip/sandwich DX
+item:Slime/generator
+item:Slingshot
+item:Snake
+item:Snake bag
+item:Sound Stone
+item:Souvenir/coin
+item:Spectrum/beam
+item:Speed/capsule
+item:Spicy jerky
+item:Sprig of/parsley
+item:Stag beetle
+item:Star/pendant
+item:Stun gun
+item:Sudden/guts pill
+item:Sugar/packet
+item:Super bomb
+item:Super plush/bear
+item:Suporma
+item:Sword of/kings
+item:T-rex's bat
+item:Talisman/coin
+item:Talisman/ribbon
+item:Teddy bear
+item:Tee ball/bat
+# item:Temporary/goods              # "Temporary goods" in-game, unused item
+item:Tendakraut
+item:Thick/fry pan
+item:Tin of/Cocoa
+item:Tiny ruby
+item:Toothbrush
+item:Town map
+item:Toy air gun
+item:Travel/charm
+item:Trick yo-yo
+item:Trout/yogurt
+item:Ultimate/bat
+item:Vial of/serum
+# item:Video/relaxant               # "Video relaxant" in-game, unused item
+item:Viper
+item:Vital/capsule
+item:Wad of/bills
+item:Wet towel
+item:Xterminator/spray
+item:Yo-yo
+item:Yogurt/dispenser
+item:Zip gun
+item:Zombie/paper
